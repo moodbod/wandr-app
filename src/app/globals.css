@@ -1,0 +1,203 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Wandr — clean, flat design system. Soft paper, ink text, single accent. */
+
+@layer base {
+  :root {
+    --background: 40 30% 97%;          /* very soft warm off-white */
+    --foreground: 0 0% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 0 0% 10%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 40 20% 94%;
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 40 15% 92%;
+    --muted-foreground: 0 0% 42%;
+
+    --accent: 14 80% 56%;              /* warm coral, single accent */
+    --accent-foreground: 0 0% 100%;
+
+    --highlight: 168 45% 42%;
+    --highlight-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 40 12% 88%;
+    --input: 40 12% 88%;
+    --ring: 14 80% 56%;
+
+    --radius: 0.875rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  .wandr-photo-marker {
+    --marker-accent: hsl(var(--accent));
+    --marker-avatar-bg: hsl(var(--accent));
+    --marker-avatar-fg: hsl(var(--accent-foreground));
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .wandr-photo-marker:focus-visible {
+    outline: 0;
+  }
+
+  .wandr-photo-marker__visual {
+    align-items: center;
+    background: transparent;
+    display: flex;
+    filter: drop-shadow(0 12px 18px rgb(0 0 0 / 0.18));
+    flex-direction: column;
+    gap: 0.2rem;
+    isolation: isolate;
+    transform-origin: bottom center;
+    transition: filter 180ms ease, transform 180ms ease;
+  }
+
+  .wandr-photo-marker:hover .wandr-photo-marker__visual,
+  .wandr-photo-marker:focus-visible .wandr-photo-marker__visual,
+  .wandr-photo-marker--active .wandr-photo-marker__visual {
+    filter: drop-shadow(0 16px 22px rgb(0 0 0 / 0.22));
+    transform: scale(1.04);
+  }
+
+  .wandr-photo-marker__photo-wrap {
+    aspect-ratio: 0.82;
+    background: hsl(var(--card));
+    border: 2px solid hsl(var(--card));
+    border-radius: 1.05rem;
+    box-shadow:
+      0 0 0 2px var(--marker-accent),
+      inset 0 0 0 1px rgb(255 255 255 / 0.45);
+    display: block;
+    overflow: visible;
+    position: relative;
+    width: clamp(3.25rem, 8vw, 4.85rem);
+  }
+
+  .wandr-photo-marker__image {
+    border-radius: 0.9rem;
+    display: block;
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+  }
+
+  .wandr-photo-marker__avatar {
+    align-items: center;
+    background: var(--marker-avatar-bg);
+    border: 2px solid hsl(var(--card));
+    border-radius: 999px;
+    bottom: -0.45rem;
+    box-shadow: 0 5px 10px rgb(0 0 0 / 0.18);
+    color: var(--marker-avatar-fg);
+    display: flex;
+    font-size: 0.68rem;
+    font-weight: 800;
+    height: 1.65rem;
+    justify-content: center;
+    line-height: 1;
+    position: absolute;
+    right: -0.5rem;
+    width: 1.65rem;
+  }
+
+  .wandr-photo-marker__label {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 999px;
+    color: hsl(var(--foreground));
+    font-size: 0.66rem;
+    font-weight: 700;
+    line-height: 1;
+    max-width: 8rem;
+    overflow: hidden;
+    padding: 0.34rem 0.55rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wandr-photo-marker__stem {
+    background: var(--marker-accent);
+    border: 2px solid hsl(var(--card));
+    border-radius: 999px;
+    box-shadow: 0 4px 9px rgb(0 0 0 / 0.2);
+    height: 0.82rem;
+    margin-top: -0.1rem;
+    width: 0.82rem;
+  }
+
+  .wandr-photo-marker--active {
+    z-index: 5;
+  }
+
+  .wandr-photo-marker--active .wandr-photo-marker__photo-wrap {
+    box-shadow:
+      0 0 0 3px hsl(var(--foreground)),
+      0 0 0 6px rgb(255 255 255 / 0.88);
+  }
+
+  .wandr-photo-marker--active .wandr-photo-marker__label {
+    background: hsl(var(--foreground));
+    border-color: hsl(var(--foreground));
+    color: hsl(var(--background));
+  }
+
+  .wandr-photo-marker--see {
+    --marker-accent: hsl(210 78% 58%);
+    --marker-avatar-bg: hsl(252 76% 78%);
+    --marker-avatar-fg: hsl(252 50% 22%);
+  }
+
+  .wandr-photo-marker--eat {
+    --marker-accent: hsl(var(--accent));
+    --marker-avatar-bg: hsl(34 92% 65%);
+    --marker-avatar-fg: hsl(22 48% 18%);
+  }
+
+  .wandr-photo-marker--gems {
+    --marker-accent: hsl(var(--highlight));
+    --marker-avatar-bg: hsl(168 45% 82%);
+    --marker-avatar-fg: hsl(168 42% 20%);
+  }
+
+  .wandr-photo-marker--routes {
+    --marker-accent: hsl(196 84% 50%);
+    --marker-avatar-bg: hsl(196 85% 82%);
+    --marker-avatar-fg: hsl(196 60% 20%);
+  }
+}
