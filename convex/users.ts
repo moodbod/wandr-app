@@ -24,7 +24,7 @@ export const current = query({
 export const completeOnboarding = mutation({
   args: {
     name: v.string(),
-    homeCity: v.string(),
+    homeCountry: v.string(),
     travelPreferences: v.array(v.string()),
   },
   handler: async (ctx, args) => {
@@ -35,16 +35,16 @@ export const completeOnboarding = mutation({
     }
 
     const name = args.name.trim();
-    const homeCity = args.homeCity.trim();
+    const homeCountry = args.homeCountry.trim();
     const travelPreferences = normalizePreferences(args.travelPreferences);
 
-    if (!name || !homeCity || travelPreferences.length === 0) {
-      throw new ConvexError("Complete your name, home city, and at least one preference.");
+    if (!name || !homeCountry || travelPreferences.length === 0) {
+      throw new ConvexError("Complete your name, home country, and at least one preference.");
     }
 
     await ctx.db.patch(userId, {
       name,
-      homeCity,
+      homeCountry,
       travelPreferences,
       onboardingCompleted: true,
     });
@@ -54,7 +54,7 @@ export const completeOnboarding = mutation({
 export const updateSettings = mutation({
   args: {
     name: v.string(),
-    homeCity: v.string(),
+    homeCountry: v.string(),
     travelPreferences: v.array(v.string()),
   },
   handler: async (ctx, args) => {
@@ -65,16 +65,16 @@ export const updateSettings = mutation({
     }
 
     const name = args.name.trim();
-    const homeCity = args.homeCity.trim();
+    const homeCountry = args.homeCountry.trim();
     const travelPreferences = normalizePreferences(args.travelPreferences);
 
-    if (!name || !homeCity || travelPreferences.length === 0) {
-      throw new ConvexError("Complete your name, home city, and at least one preference.");
+    if (!name || !homeCountry || travelPreferences.length === 0) {
+      throw new ConvexError("Complete your name, home country, and at least one preference.");
     }
 
     await ctx.db.patch(userId, {
       name,
-      homeCity,
+      homeCountry,
       travelPreferences,
       onboardingCompleted: true,
     });

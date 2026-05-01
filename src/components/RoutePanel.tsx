@@ -29,7 +29,7 @@ const RoutePanel = ({ spot, mode, summary, isActive, onModeChange, onClose, onSt
   const distance = summary ? formatDistance(summary.distanceMeters) : "Calculating route";
 
   return (
-    <div className="bg-card">
+    <div className="overflow-hidden rounded-[1.5rem] bg-card">
       <div className="flex items-center justify-between px-3 pb-2 pt-4">
         <div className="min-w-0">
           <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent">Route</div>

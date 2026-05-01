@@ -43,7 +43,7 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
     try {
       await completeOnboarding({
         name: String(formData.get("name") ?? ""),
-        homeCity: String(formData.get("homeCity") ?? ""),
+        homeCountry: String(formData.get("homeCountry") ?? ""),
         travelPreferences: selected,
       });
       onComplete();
@@ -76,12 +76,12 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Home city
+            Home country
             <input
-              name="homeCity"
+              name="homeCountry"
               type="text"
               required
-              autoComplete="address-level2"
+              autoComplete="country-name"
               className="rounded-xl border border-input bg-background px-3 py-3 text-[16px] font-normal outline-none focus:ring-2 focus:ring-ring sm:text-sm"
             />
           </label>

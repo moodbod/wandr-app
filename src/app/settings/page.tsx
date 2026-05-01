@@ -56,7 +56,7 @@ export default function SettingsPage() {
   const updateSettings = useMutation(api.users.updateSettings);
   const [authOpen, setAuthOpen] = useState(false);
   const [name, setName] = useState("");
-  const [homeCity, setHomeCity] = useState("");
+  const [homeCountry, setHomeCountry] = useState("");
   const [selectedPreferences, setSelectedPreferences] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -68,7 +68,7 @@ export default function SettingsPage() {
     }
 
     setName(currentUser.name ?? "");
-    setHomeCity(currentUser.homeCity ?? "");
+    setHomeCountry(currentUser.homeCountry ?? currentUser.homeCity ?? "");
     setSelectedPreferences(currentUser.travelPreferences ?? []);
   }, [currentUser]);
 
@@ -93,7 +93,7 @@ export default function SettingsPage() {
     try {
       await updateSettings({
         name,
-        homeCity,
+        homeCountry,
         travelPreferences: selectedPreferences,
       });
       setSaved(true);
@@ -199,16 +199,16 @@ export default function SettingsPage() {
                 </label>
 
                 <label className="flex flex-col gap-2 text-sm font-medium">
-                  <span>Home city</span>
+                  <span>Home country</span>
                   <input
-                    value={homeCity}
+                    value={homeCountry}
                     onChange={(event) => {
                       setSaved(false);
-                      setHomeCity(event.target.value);
+                      setHomeCountry(event.target.value);
                     }}
                     type="text"
                     required
-                    autoComplete="address-level2"
+                    autoComplete="country-name"
                     className="min-h-12 rounded-2xl border border-transparent bg-white/90 px-4 text-[16px] font-normal shadow-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 sm:text-sm"
                   />
                 </label>

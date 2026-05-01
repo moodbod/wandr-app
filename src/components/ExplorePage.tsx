@@ -256,7 +256,7 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
   }, []);
 
   return (
-    <main className="relative h-dvh w-full overflow-hidden bg-background text-foreground">
+    <main className="relative -mt-[env(safe-area-inset-top)] h-[calc(100dvh+env(safe-area-inset-top))] w-full overflow-hidden bg-background text-foreground">
       {/* Map */}
       <div className={["absolute inset-0", showDesktopTripPanel ? "lg:left-96" : ""].join(" ")}>
         <MapboxStreetsMap
@@ -275,7 +275,7 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
       {/* Top */}
       <header
         className={[
-          "absolute top-0 left-0 right-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-6",
+          "absolute left-0 right-0 top-[env(safe-area-inset-top)] z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-6",
           showDesktopTripPanel ? "lg:left-96" : "",
         ].join(" ")}
       >

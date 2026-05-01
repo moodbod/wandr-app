@@ -12,6 +12,7 @@ export default defineSchema({
     emailVerificationTime: v.optional(v.number()),
     phoneVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
+    homeCountry: v.optional(v.string()),
     homeCity: v.optional(v.string()),
     travelPreferences: v.optional(v.array(v.string())),
     onboardingCompleted: v.optional(v.boolean()),
