@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: "Local travel picks and routes.",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Wandr",
   },
   formatDetection: {
