@@ -1,6 +1,6 @@
 import { Car, Footprints, Navigation, X } from "lucide-react";
-import type { Spot } from "@/data/destinations";
 import type { RouteSummary } from "@/components/MapboxStreetsMap";
+import type { Spot } from "@/data/destinations";
 
 type Props = {
   spot: Spot;
@@ -29,53 +29,57 @@ const RoutePanel = ({ spot, mode, summary, isActive, onModeChange, onClose, onSt
   const distance = summary ? formatDistance(summary.distanceMeters) : "Calculating route";
 
   return (
-    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <div>
-          <div className="text-[11px] font-medium uppercase tracking-wider text-accent">Route</div>
-          <h3 className="text-base font-semibold leading-tight mt-0.5">to {spot.name}</h3>
+    <div className="bg-card">
+      <div className="flex items-center justify-between px-3 pb-2 pt-4">
+        <div className="min-w-0">
+          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent">Route</div>
+          <h3 className="mt-1 truncate text-base font-semibold leading-tight">to {spot.name}</h3>
         </div>
-        <button onClick={onClose} className="size-7 grid place-items-center rounded-full hover:bg-secondary text-muted-foreground" aria-label="Close route">
+        <button
+          onClick={onClose}
+          className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          aria-label="Close route"
+        >
           <X className="size-4" />
         </button>
       </div>
 
-      <div className="px-4 pb-3 flex items-center gap-2">
-        <div className="bg-secondary rounded-full p-0.5 flex text-xs font-medium">
+      <div className="flex items-center gap-2 px-3 pb-5">
+        <div className="flex rounded-full bg-secondary p-1 text-xs font-medium">
           <button
             onClick={() => onModeChange("walk")}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-colors ${mode === "walk" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+            className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3.5 py-1.5 transition-colors ${mode === "walk" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Footprints className="size-3.5" /> Walk
           </button>
           <button
             onClick={() => onModeChange("drive")}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-colors ${mode === "drive" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+            className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3.5 py-1.5 transition-colors ${mode === "drive" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Car className="size-3.5" /> Drive
           </button>
         </div>
 
         <div className="ml-auto text-right">
-          <div className="text-base font-semibold tabular-nums leading-none">{eta ? `${eta} min` : "--"}</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
+          <div className="text-lg font-semibold tabular-nums leading-none">{eta ? `${eta} min` : "--"}</div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">
             {distance}
-            {summary ? ` · ${mode === "walk" ? "fastest walk" : "fastest drive"}` : ""}
+            {summary ? ` · fastest ${mode}` : ""}
           </div>
         </div>
       </div>
 
-      <div className="border-t border-border px-4 py-3 flex items-center gap-3">
-        <div className="flex-1 flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-3 px-3 pb-3 pt-0">
+        <div className="flex min-w-0 flex-1 items-center gap-2 text-xs text-muted-foreground">
           <span className="size-2 rounded-full bg-accent" />
           You
-          <div className="flex-1 h-px border-t border-dashed border-border" />
+          <div className="hidden h-px flex-1 border-t border-dashed border-border min-[360px]:block" />
           <span className="size-2 rounded-full bg-foreground" />
-          {spot.name}
+          <span className="truncate">{spot.name}</span>
         </div>
         <button
           onClick={onStart}
-          className="inline-flex items-center gap-1.5 bg-foreground text-background rounded-full px-3 py-1.5 text-xs font-medium hover:bg-foreground/90 transition-colors"
+          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background shadow-sm transition-colors hover:bg-foreground/90"
         >
           <Navigation className="size-3.5" /> {isActive ? "Tracking" : "Start"}
         </button>

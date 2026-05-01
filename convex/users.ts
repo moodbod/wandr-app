@@ -50,3 +50,33 @@ export const completeOnboarding = mutation({
     });
   },
 });
+
+export const updateSettings = mutation({
+  args: {
+    name: v.string(),
+    homeCity: v.string(),
+    travelPreferences: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+
+    if (!userId) {
+      throw new ConvexError("You must be signed in to update settings.");
+    }
+
+    const name = args.name.trim();
+    const homeCity = args.homeCity.trim();
+    const travelPreferences = normalizePreferences(args.travelPreferences);
+
+    if (!name || !homeCity || travelPreferences.length === 0) {
+      throw new ConvexError("Complete your name, home city, and at least one preference.");
+    }
+
+    await ctx.db.patch(userId, {
+      name,
+      homeCity,
+      travelPreferences,
+      onboardingCompleted: true,
+    });
+  },
+});

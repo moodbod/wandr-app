@@ -43,8 +43,9 @@ export function AuthDialog({ open, onClose, onSubmitted }: AuthDialogProps) {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true">
-      <button className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} aria-label="Close sign in" />
-      <div className="relative w-full max-w-sm rounded-t-3xl border border-border bg-card p-5 shadow-xl sm:rounded-2xl">
+      <button className="absolute inset-0 bg-foreground/45 backdrop-blur-[2px]" onClick={onClose} aria-label="Close sign in" />
+      <div className="relative w-full max-w-sm rounded-t-[1.75rem] border border-border bg-card p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shadow-2xl animate-in slide-in-from-bottom-6 duration-300 sm:rounded-2xl sm:pb-5 sm:zoom-in-95">
+        <div className="absolute left-1/2 top-2 h-1.5 w-12 -translate-x-1/2 rounded-full bg-muted sm:hidden" />
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <div className="text-[11px] font-medium uppercase tracking-wider text-accent">Wandr account</div>
@@ -53,7 +54,7 @@ export function AuthDialog({ open, onClose, onSubmitted }: AuthDialogProps) {
           <button
             type="button"
             onClick={onClose}
-            className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+            className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
             aria-label="Close"
           >
             <X className="size-4" />
@@ -68,7 +69,7 @@ export function AuthDialog({ open, onClose, onSubmitted }: AuthDialogProps) {
               type="email"
               required
               autoComplete="email"
-              className="rounded-xl border border-input bg-background px-3 py-2.5 text-sm font-normal outline-none focus:ring-2 focus:ring-ring"
+              className="rounded-xl border border-input bg-background px-3 py-3 text-[16px] font-normal outline-none focus:ring-2 focus:ring-ring sm:text-sm"
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
@@ -79,7 +80,7 @@ export function AuthDialog({ open, onClose, onSubmitted }: AuthDialogProps) {
               required
               minLength={8}
               autoComplete={flow === "signIn" ? "current-password" : "new-password"}
-              className="rounded-xl border border-input bg-background px-3 py-2.5 text-sm font-normal outline-none focus:ring-2 focus:ring-ring"
+              className="rounded-xl border border-input bg-background px-3 py-3 text-[16px] font-normal outline-none focus:ring-2 focus:ring-ring sm:text-sm"
             />
           </label>
 
@@ -92,7 +93,7 @@ export function AuthDialog({ open, onClose, onSubmitted }: AuthDialogProps) {
           <button
             type="submit"
             disabled={pending}
-            className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-1 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
             {flow === "signIn" ? "Sign in" : "Sign up"}

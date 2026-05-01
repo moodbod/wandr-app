@@ -56,14 +56,15 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" />
-      <div className="relative w-full max-w-md rounded-t-3xl border border-border bg-card p-5 shadow-xl sm:rounded-2xl">
+      <div className="absolute inset-0 bg-foreground/45 backdrop-blur-[2px]" />
+      <div className="relative flex max-h-[92dvh] w-full max-w-md flex-col rounded-t-[1.75rem] border border-border bg-card p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shadow-2xl animate-in slide-in-from-bottom-6 duration-300 sm:rounded-2xl sm:pb-5 sm:zoom-in-95">
+        <div className="absolute left-1/2 top-2 h-1.5 w-12 -translate-x-1/2 rounded-full bg-muted sm:hidden" />
         <div className="mb-5">
           <div className="text-[11px] font-medium uppercase tracking-wider text-accent">New here</div>
           <h2 className="mt-1 text-xl font-semibold leading-tight">Set up your Wandr profile</h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-col gap-3 overflow-y-auto">
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Name
             <input
@@ -71,7 +72,7 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
               type="text"
               required
               autoComplete="name"
-              className="rounded-xl border border-input bg-background px-3 py-2.5 text-sm font-normal outline-none focus:ring-2 focus:ring-ring"
+              className="rounded-xl border border-input bg-background px-3 py-3 text-[16px] font-normal outline-none focus:ring-2 focus:ring-ring sm:text-sm"
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
@@ -81,7 +82,7 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
               type="text"
               required
               autoComplete="address-level2"
-              className="rounded-xl border border-input bg-background px-3 py-2.5 text-sm font-normal outline-none focus:ring-2 focus:ring-ring"
+              className="rounded-xl border border-input bg-background px-3 py-3 text-[16px] font-normal outline-none focus:ring-2 focus:ring-ring sm:text-sm"
             />
           </label>
 
@@ -96,7 +97,7 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
                     type="button"
                     onClick={() => togglePreference(preference.id)}
                     className={[
-                      "inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                      "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
                       active
                         ? "border-foreground bg-foreground text-background"
                         : "border-border bg-background text-foreground hover:bg-secondary",
@@ -119,7 +120,7 @@ export function OnboardingDialog({ open, onComplete }: OnboardingDialogProps) {
           <button
             type="submit"
             disabled={pending}
-            className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-1 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
             Continue

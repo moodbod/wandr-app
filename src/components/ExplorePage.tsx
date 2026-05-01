@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { Search, Coffee, Eye, Sparkles, Route as RouteIcon, Clock, ArrowUpRight, Navigation, ListChecks } from "lucide-react";
+import { Search, Coffee, Eye, Sparkles, Route as RouteIcon, Navigation, SlidersHorizontal, ChevronDown, ListChecks } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { AuthDialog } from "@/components/AuthDialog";
@@ -14,24 +14,31 @@ import { OnboardingDialog } from "@/components/OnboardingDialog";
 import RoutePanel from "@/components/RoutePanel";
 import SpotModal from "@/components/SpotModal";
 import TripPanel from "@/components/TripPanel";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { destinations, type Spot } from "@/data/destinations";
 import { getCurrentStop, getRouteStopIds, getTripProgress, hasTripSpot, orderedTripStops } from "@/lib/tripPlanner";
 
 const categories = [
-  { id: "all", label: "All", icon: Sparkles },
-  { id: "eat", label: "Eat", icon: Coffee },
-  { id: "see", label: "See", icon: Eye },
-  { id: "gems", label: "Hidden gems", icon: Sparkles },
-  { id: "routes", label: "Routes", icon: RouteIcon },
+  { id: "all", label: "All", mobileLabel: "All", icon: Sparkles },
+  { id: "eat", label: "Eat", mobileLabel: "Eat", icon: Coffee },
+  { id: "see", label: "See", mobileLabel: "See", icon: Eye },
+  { id: "gems", label: "Hidden gems", mobileLabel: "Gems", icon: Sparkles },
+  { id: "routes", label: "Routes", mobileLabel: "Routes", icon: RouteIcon },
 ] as const;
 
 type GatedAction = () => void;
 
-const ExplorePage = () => {
+type ExplorePageProps = {
+  initialDestinationId?: string;
+};
+
+const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const currentUser = useQuery(api.users.current, isAuthenticated ? {} : "skip");
-  const [destination, setDestination] = useState(destinations[0]);
+  const requestedDestinationId = initialDestinationId ?? null;
+  const initialDestination =
+    destinations.find((candidate) => candidate.id === requestedDestinationId) ?? destinations[0];
+  const [destination, setDestination] = useState(initialDestination);
   const [activeCat, setActiveCat] = useState<(typeof categories)[number]["id"]>("all");
   const [fallbackNextStopId, setFallbackNextStopId] = useState<string | null>(destination.spots[0]?.id ?? null);
   const [openSpotId, setOpenSpotId] = useState<string | null>(null);
@@ -39,6 +46,7 @@ const ExplorePage = () => {
   const [routeOpen, setRouteOpen] = useState(false);
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
   const [tripSheetOpen, setTripSheetOpen] = useState(false);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const pendingActionRef = useRef<GatedAction | null>(null);
@@ -70,19 +78,41 @@ const ExplorePage = () => {
   const openSpot: Spot | null =
     destination.spots.find((s) => s.id === openSpotId) ?? null;
   const routeMode = tripData?.trip.routeMode ?? fallbackRouteMode;
+  const activeCategory = categories.find((category) => category.id === activeCat) ?? categories[0];
   const tripProgress = getTripProgress(tripStops);
   const showDesktopTripPanel = tripProgress.total > 0;
   const isActiveTrip = tripData?.trip.status === "active";
   const isPlanningTrip = tripData?.trip.status === "planning" && tripProgress.total > 0;
+  const isInactiveRecommendation = !isActiveTrip && !isPlanningTrip;
   const stopPillLabel = isActiveTrip ? "Next" : isPlanningTrip ? "First stop" : "Suggested";
   const stopCardLabel = isActiveTrip ? nextStop?.tag : isPlanningTrip ? "Ready to start" : nextStop?.tag;
   const stopActionLabel = isActiveTrip ? "Route me there" : isPlanningTrip ? "Start trip" : "Route me there";
+  const highlightedSpotId = nextStop && (routeOpen || isActiveTrip || isPlanningTrip) ? nextStop.id : null;
   const routeStopsForMap = useMemo(() => {
     const stopIds = getRouteStopIds(tripStops, tripData?.trip.status);
     return stopIds
       .map((spotId) => destination.spots.find((spot) => spot.id === spotId))
       .filter((spot): spot is Spot => Boolean(spot));
   }, [destination.spots, tripData?.trip.status, tripStops]);
+
+  useEffect(() => {
+    if (!requestedDestinationId || requestedDestinationId === destination.id) {
+      return;
+    }
+
+    const nextDestination = destinations.find((candidate) => candidate.id === requestedDestinationId);
+
+    if (!nextDestination) {
+      return;
+    }
+
+    setDestination(nextDestination);
+    setFallbackNextStopId(nextDestination.spots[0]?.id ?? null);
+    setOpenSpotId(null);
+    setRouteOpen(false);
+    setRouteSummary(null);
+    setTripSheetOpen(false);
+  }, [destination.id, requestedDestinationId]);
 
   const handleDestinationChange = (d: typeof destinations[number]) => {
     setDestination(d);
@@ -233,36 +263,104 @@ const ExplorePage = () => {
           destination={destination}
           spots={visibleSpots}
           nextStop={nextStop}
+          highlightedSpotId={highlightedSpotId}
           routeStops={routeStopsForMap}
           routeOpen={routeOpen}
           routeMode={routeMode}
           onOpenSpot={handleOpenSpot}
           onRouteSummaryChange={handleRouteSummaryChange}
         />
-        <div className="absolute inset-0 pointer-events-none bg-background/30" />
       </div>
 
       {/* Top */}
       <header
         className={[
-          "absolute top-0 left-0 right-0 z-30 px-4 pt-5 sm:px-6 sm:pt-6",
+          "absolute top-0 left-0 right-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-6",
           showDesktopTripPanel ? "lg:left-96" : "",
         ].join(" ")}
       >
+        <div className="sm:hidden">
+          <div className="relative w-full">
+            <div className="relative z-40 flex w-full items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => runGatedAction(() => undefined)}
+                className="grid size-10 shrink-0 place-items-center rounded-full border border-white/70 bg-white/95 text-foreground backdrop-blur-xl transition-transform active:scale-95"
+                aria-label={`Search ${destination.city}`}
+              >
+                <Search className="size-4" />
+              </button>
+
+              <div className="flex min-w-0 items-center justify-end gap-2">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setMobileFilterOpen((open) => !open)}
+                    className="inline-flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-full border border-white/70 bg-white/95 px-3.5 text-xs font-medium text-foreground backdrop-blur-xl transition-transform active:scale-95"
+                    aria-expanded={mobileFilterOpen}
+                    aria-label="Filter places"
+                  >
+                    <SlidersHorizontal className="size-3.5 shrink-0" />
+                    <span>{activeCategory.mobileLabel}</span>
+                    <ChevronDown className={`size-3.5 shrink-0 transition-transform ${mobileFilterOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {mobileFilterOpen ? (
+                    <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-2xl border border-white/70 bg-white/95 p-1 backdrop-blur-xl">
+                      {categories.map((category) => {
+                        const isActive = activeCat === category.id;
+                        const Icon = category.icon;
+                        return (
+                          <button
+                            key={category.id}
+                            type="button"
+                            onClick={() => {
+                              setActiveCat(category.id);
+                              setMobileFilterOpen(false);
+                            }}
+                            className={[
+                              "flex h-10 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium transition-colors",
+                              isActive ? "bg-foreground text-background" : "text-foreground hover:bg-secondary",
+                            ].join(" ")}
+                          >
+                            <Icon className="size-4 shrink-0" />
+                            <span>{category.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+                <AuthStatus
+                  userName={currentUser?.name}
+                  userEmail={currentUser?.email}
+                  onSignIn={() => setAuthOpen(true)}
+                />
+              </div>
+            </div>
+
+            {mobileFilterOpen ? (
+              <div className="fixed inset-0 z-30" onClick={() => setMobileFilterOpen(false)} />
+            ) : null}
+          </div>
+        </div>
+
         <div
           className={[
-            "flex flex-col gap-3",
+            "hidden flex-col gap-2.5 sm:flex sm:gap-3",
             showDesktopTripPanel
               ? "lg:grid lg:grid-cols-[12rem_minmax(20rem,42rem)_max-content] lg:items-start lg:gap-x-6"
               : "lg:grid lg:grid-cols-[12rem_minmax(20rem,42rem)_max-content] lg:items-start lg:gap-x-6 lg:justify-between",
           ].join(" ")}
         >
-          <div className="flex items-center justify-between gap-3 lg:contents">
-            <h1 className="text-xl font-semibold tracking-tight lg:col-start-1 lg:pt-3">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 lg:contents">
+            <h1 className="rounded-full bg-card/95 px-3.5 py-2.5 text-base font-semibold tracking-tight shadow-sm backdrop-blur-md lg:col-start-1 lg:bg-transparent lg:px-0 lg:pt-3 lg:text-xl lg:shadow-none lg:backdrop-blur-0">
               Wandr
             </h1>
-            <div className="flex items-center gap-2 lg:col-start-3">
-              <DestinationPicker value={destination} onChange={handleDestinationChange} />
+            <div className="contents lg:col-start-3 lg:flex lg:items-center lg:gap-2">
+              <div className="lg:hidden">
+                <DestinationPicker value={destination} onChange={handleDestinationChange} />
+              </div>
               <AuthStatus
                 userName={currentUser?.name}
                 userEmail={currentUser?.email}
@@ -273,12 +371,12 @@ const ExplorePage = () => {
 
           <div
             className={[
-              "mx-auto flex w-full max-w-2xl flex-col gap-3 lg:row-start-1 lg:pt-0",
+              "mx-auto flex w-full max-w-2xl flex-col gap-2.5 lg:row-start-1 lg:gap-3 lg:pt-0",
               showDesktopTripPanel ? "lg:col-start-2 lg:mx-0 lg:max-w-none" : "lg:col-start-2 lg:mx-auto",
             ].join(" ")}
           >
             <form
-              className="bg-card rounded-full border border-border flex items-center gap-2 pl-4 pr-1.5 py-1.5 shadow-sm"
+              className="flex items-center gap-2 rounded-full border border-border bg-card/95 py-1.5 pl-4 pr-1.5 shadow-lg shadow-foreground/10 backdrop-blur-md lg:bg-card lg:shadow-sm lg:backdrop-blur-0"
               onSubmit={(event) => {
                 event.preventDefault();
                 runGatedAction(() => undefined);
@@ -288,17 +386,17 @@ const ExplorePage = () => {
               <input
                 type="text"
                 placeholder={`I'm in ${destination.city}. What should I see?`}
-                className="w-full bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none py-1.5"
+                className="min-w-0 w-full bg-transparent py-1.5 text-[16px] placeholder:text-muted-foreground focus:outline-none sm:text-sm"
               />
               <button
                 type="submit"
-                className="bg-foreground text-background rounded-full px-4 py-1.5 text-xs font-medium hover:bg-foreground/90 transition-colors"
+                className="rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background transition-colors hover:bg-foreground/90"
               >
                 Ask
               </button>
             </form>
 
-            <div className="flex gap-1.5 overflow-x-auto pb-1">
+            <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
               {categories.map((c) => {
                 const isActive = activeCat === c.id;
                 const Icon = c.icon;
@@ -307,8 +405,8 @@ const ExplorePage = () => {
                     key={c.id}
                     onClick={() => setActiveCat(c.id)}
                     className={[
-                      "shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-                      isActive ? "bg-foreground text-background" : "bg-card text-foreground border border-border hover:bg-secondary",
+                      "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium shadow-sm transition-colors",
+                      isActive ? "bg-foreground text-background" : "border border-border bg-card/95 text-foreground backdrop-blur-md hover:bg-secondary",
                     ].join(" ")}
                   >
                     <Icon className="size-3.5" />
@@ -324,88 +422,115 @@ const ExplorePage = () => {
       {/* Bottom */}
       <div
         className={[
-          "absolute bottom-0 left-0 right-0 z-30 px-4 pb-5 sm:px-6 sm:pb-6",
+          "absolute bottom-0 left-0 right-0 z-30 sm:px-6 sm:pb-6",
           showDesktopTripPanel ? "lg:left-96" : "",
         ].join(" ")}
       >
-        <div className="mx-auto max-w-2xl flex flex-col gap-2.5">
-          <button
-            type="button"
-            onClick={() => runGatedAction(() => setTripSheetOpen(true))}
-            className="self-end inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-secondary lg:hidden"
-          >
-            <ListChecks className="size-3.5" />
-            Trip
-            <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground">
-              {tripProgress.total}
-            </span>
-          </button>
-
+        <div className="mx-auto flex w-[calc(100%-2rem)] max-w-[23rem] flex-col sm:w-full sm:max-w-2xl sm:gap-2.5">
           {nextStop && routeOpen ? (
-            <RoutePanel
-              spot={nextStop}
-              mode={routeMode}
-              summary={routeSummary}
-              isActive={tripData?.trip.status === "active"}
-              onModeChange={handleSetRouteMode}
-              onClose={() => setRouteOpen(false)}
-              onStart={() => handleStartRoute(nextStop)}
-            />
+            <div className="rounded-t-[2rem] bg-card px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
+              <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
+              <RoutePanel
+                spot={nextStop}
+                mode={routeMode}
+                summary={routeSummary}
+                isActive={tripData?.trip.status === "active"}
+                onModeChange={handleSetRouteMode}
+                onClose={() => setRouteOpen(false)}
+                onStart={() => handleStartRoute(nextStop)}
+              />
+            </div>
           ) : nextStop ? (
-            <>
-              <div className="self-end bg-card border border-border rounded-full pl-2 pr-3 py-1.5 shadow-sm flex items-center gap-2 text-xs">
-                <span className="size-2 rounded-full bg-highlight" />
-                <span className="font-medium">{stopPillLabel}: {nextStop.name}</span>
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <Clock className="size-3" /> {routeMode === "drive" ? nextStop.driveMin : nextStop.walkMin} min
-                </span>
-                <ArrowUpRight className="size-3.5 text-muted-foreground" />
+            <div className="rounded-t-[2rem] bg-card px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
+              <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
+              <div className="mb-4 flex items-center justify-between gap-3 sm:hidden">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-accent">
+                    <ListChecks className="size-3.5" />
+                    {isActiveTrip ? "Active trip" : isPlanningTrip ? "Trip ready" : "Start a trip"}
+                  </div>
+                  <div className="mt-0.5 truncate text-lg font-black leading-none tracking-[-0.04em] text-foreground">
+                    {tripProgress.total > 0 ? `${tripProgress.total} stop${tripProgress.total === 1 ? "" : "s"}` : "Suggested stop"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => runGatedAction(() => setTripSheetOpen(true))}
+                  className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full bg-foreground px-3.5 py-2 text-xs font-semibold text-background transition-transform active:scale-95"
+                  aria-label={`Open trip with ${tripProgress.total} stops`}
+                >
+                  Trip
+                </button>
               </div>
 
-              <button
-                onClick={() => runGatedAction(() => setOpenSpotId(nextStop.id))}
-                className="text-left bg-card rounded-2xl border border-border shadow-sm overflow-hidden hover:border-foreground/20 transition-colors"
+              <div
+                className="group overflow-hidden rounded-[1.45rem] bg-foreground text-left text-background shadow-xl shadow-foreground/15 transition-transform active:scale-[0.99] sm:rounded-[1.35rem] sm:border sm:border-border sm:bg-card sm:text-foreground sm:shadow-2xl sm:shadow-foreground/15 sm:hover:border-foreground/20"
               >
-                <div className="grid grid-cols-[6.5rem_1fr] sm:grid-cols-[8rem_1fr]">
-                  <img src={nextStop.image} alt={nextStop.name} className="h-full w-full object-cover" loading="lazy" />
-                  <div className="p-4 flex flex-col gap-2">
+                <div className="relative min-h-[7.6rem] sm:grid sm:min-h-[10.5rem] sm:grid-cols-[8rem_1fr]">
+                  <img src={nextStop.image} alt={nextStop.name} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:static sm:min-h-[10.5rem]" loading="lazy" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent sm:hidden" />
+                  <div className="relative flex min-h-[7.6rem] min-w-0 flex-col justify-end gap-1.5 p-4 sm:min-h-0 sm:justify-start sm:gap-2 sm:p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-[11px] font-medium uppercase tracking-wider text-accent">
-                          {stopCardLabel}
+                        <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/85 sm:text-[11px] sm:font-medium sm:tracking-wider sm:text-accent">
+                          {isInactiveRecommendation ? "You might like this" : stopCardLabel}
                         </div>
-                        <h2 className="text-lg font-semibold leading-tight mt-0.5">{nextStop.name}</h2>
+                        <h2 className="mt-0.5 line-clamp-2 text-base font-semibold leading-tight text-white sm:text-lg sm:text-foreground">{nextStop.name}</h2>
+                        {isInactiveRecommendation ? (
+                          <div className="mt-1 hidden text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:block">
+                            {nextStop.tag}
+                          </div>
+                        ) : null}
                       </div>
-                      <div className="flex flex-col items-end shrink-0">
-                        <span className="text-sm font-semibold tabular-nums">
+                      <div className="flex h-10 shrink-0 items-center gap-1 rounded-full bg-white/95 px-3 text-foreground shadow-sm sm:h-auto sm:flex-col sm:items-end sm:gap-0 sm:bg-transparent sm:px-0 sm:py-0 sm:text-right sm:shadow-none">
+                        <span className="text-xs font-bold leading-none tabular-nums sm:text-sm sm:font-semibold">
                           {routeMode === "drive" ? nextStop.driveMin : nextStop.walkMin} min
                         </span>
-                        <span className="text-[11px] text-muted-foreground">{routeMode}</span>
+                        <span className="text-[10px] leading-none text-muted-foreground sm:mt-0.5 sm:text-[11px]">{routeMode}</span>
                       </div>
                     </div>
 
-                    <p className="text-sm text-muted-foreground leading-relaxed">{nextStop.tip}</p>
+                    <p className="line-clamp-1 text-xs leading-relaxed text-white/85 sm:line-clamp-3 sm:text-sm sm:text-muted-foreground">{nextStop.tip}</p>
 
-                    <span
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isPlanningTrip) {
-                          handleStartRoute(nextStop);
-                          return;
-                        }
+                    {isInactiveRecommendation ? (
+                      <div className="mt-1 flex flex-wrap gap-2 sm:mt-auto">
+                        <button
+                          type="button"
+                          onClick={() => runGatedAction(() => setOpenSpotId(nextStop.id))}
+                          className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-white/90 sm:min-h-9 sm:bg-foreground sm:px-3.5 sm:py-2 sm:font-medium sm:text-background sm:hover:bg-foreground/90"
+                        >
+                          <Eye className="size-3.5" /> View spot
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => runGatedAction(() => setRouteOpen(true))}
+                          className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-white/70 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20 sm:min-h-9 sm:border-border sm:bg-transparent sm:px-3.5 sm:py-2 sm:font-medium sm:text-foreground sm:hover:bg-secondary"
+                        >
+                          <Navigation className="size-3.5" /> Route
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isPlanningTrip) {
+                            handleStartRoute(nextStop);
+                            return;
+                          }
 
-                        runGatedAction(() => setRouteOpen(true));
-                      }}
-                      className="self-start mt-1 inline-flex items-center gap-1.5 bg-foreground text-background rounded-full px-3 py-1.5 text-xs font-medium hover:bg-foreground/90 transition-colors cursor-pointer"
-                    >
-                      <Navigation className="size-3.5" /> {stopActionLabel}
-                    </span>
+                          runGatedAction(() => setRouteOpen(true));
+                        }}
+                        className="mt-1 inline-flex min-h-8 self-start items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-white/90 sm:mt-auto sm:min-h-9 sm:bg-foreground sm:px-3.5 sm:py-2 sm:font-medium sm:text-background sm:hover:bg-foreground/90"
+                      >
+                        <Navigation className="size-3.5" /> {stopActionLabel}
+                      </button>
+                    )}
                   </div>
                 </div>
-              </button>
-            </>
+              </div>
+            </div>
           ) : (
-            <div className="bg-card rounded-2xl border border-border shadow-sm p-4 text-sm text-muted-foreground text-center">
+            <div className="rounded-t-[2rem] border border-border bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-sm text-muted-foreground shadow-2xl shadow-foreground/15 sm:rounded-2xl sm:pb-4 sm:shadow-sm">
               No spots in this category yet for {destination.city}.
             </div>
           )}
@@ -431,9 +556,9 @@ const ExplorePage = () => {
         </div>
       ) : null}
 
-      <Sheet open={tripSheetOpen} onOpenChange={setTripSheetOpen}>
-        <SheetContent side="bottom" className="h-[82dvh] p-0 lg:hidden">
-          <SheetTitle className="sr-only">Your adventure</SheetTitle>
+      <Drawer open={tripSheetOpen} onOpenChange={setTripSheetOpen}>
+        <DrawerContent className="h-[88dvh] max-h-[88dvh] rounded-t-[1.75rem] border-border bg-card p-0 lg:hidden">
+          <DrawerTitle className="sr-only">Your adventure</DrawerTitle>
           <TripPanel
             destination={destination}
             tripData={tripPanelData}
@@ -454,8 +579,8 @@ const ExplorePage = () => {
             onSkipStop={(tripStopId) => runGatedAction(() => void skipTripStop({ tripStopId: tripStopId as Id<"tripStops"> }))}
             onRouteModeChange={(tripId, mode) => runGatedAction(() => void setTripRouteMode({ tripId: tripId as Id<"trips">, routeMode: mode }))}
           />
-        </SheetContent>
-      </Sheet>
+        </DrawerContent>
+      </Drawer>
 
       {/* Spot details modal */}
       <SpotModal

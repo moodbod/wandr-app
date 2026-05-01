@@ -23,26 +23,27 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-end justify-center p-0 animate-in fade-in duration-200 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="spot-title"
     >
       <button
-        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-foreground/45 backdrop-blur-[2px]"
         onClick={onClose}
         aria-label="Close"
       />
 
-      <div className="relative w-full max-w-md bg-card rounded-t-3xl sm:rounded-3xl border border-border shadow-xl overflow-hidden animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-300">
+      <div className="relative flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[1.75rem] border border-border bg-card shadow-2xl animate-in slide-in-from-bottom-6 duration-300 sm:max-h-[88dvh] sm:rounded-3xl sm:zoom-in-95">
+        <div className="absolute left-1/2 top-2 z-10 h-1.5 w-12 -translate-x-1/2 rounded-full bg-background/75 sm:hidden" />
         {/* Image */}
-        <div className="relative aspect-[5/3] w-full">
+        <div className="relative aspect-[5/3] w-full shrink-0">
           <img src={spot.image} alt={spot.name} className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 via-transparent to-transparent" />
 
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 size-9 grid place-items-center rounded-full bg-background/90 backdrop-blur-sm hover:bg-background transition-colors"
+            className="absolute right-3 top-3 grid size-10 place-items-center rounded-full bg-background/90 backdrop-blur-sm transition-colors hover:bg-background"
             aria-label="Close"
           >
             <X className="size-4" />
@@ -64,10 +65,10 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
         </div>
 
         {/* Body */}
-        <div className="p-5 flex flex-col gap-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:p-5">
           {/* ETA row */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-center gap-2.5 bg-secondary rounded-2xl px-3 py-2.5">
+            <div className="flex items-center gap-2.5 rounded-2xl bg-secondary px-3 py-3">
               <div className="size-8 grid place-items-center rounded-full bg-card">
                 <Footprints className="size-4" />
               </div>
@@ -76,7 +77,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
                 <div className="text-[11px] text-muted-foreground mt-0.5">Walk</div>
               </div>
             </div>
-            <div className="flex items-center gap-2.5 bg-secondary rounded-2xl px-3 py-2.5">
+            <div className="flex items-center gap-2.5 rounded-2xl bg-secondary px-3 py-3">
               <div className="size-8 grid place-items-center rounded-full bg-card">
                 <Car className="size-4" />
               </div>
@@ -96,12 +97,12 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
           </div>
 
           {/* Actions */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="sticky bottom-0 -mx-4 -mb-[calc(env(safe-area-inset-bottom)+1rem)] grid grid-cols-2 gap-2 border-t border-border bg-card/95 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] backdrop-blur-md sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
             <button
               onClick={() => onAddToTrip(spot)}
               disabled={isInTrip}
               className={[
-                "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
+                "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
                 isInTrip
                   ? "bg-secondary text-muted-foreground cursor-default"
                   : "bg-foreground text-background hover:bg-foreground/90",
@@ -114,7 +115,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
               onClick={() => onSetNextStop(spot)}
               disabled={isNextStop}
               className={[
-                "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
+                "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
                 isNextStop
                   ? "bg-secondary text-muted-foreground cursor-default"
                   : "border border-border hover:bg-secondary",
@@ -125,7 +126,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
             </button>
             <button
               onClick={() => onRoute(spot)}
-              className="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium border border-border hover:bg-secondary transition-colors"
+              className="col-span-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-secondary"
             >
               <Navigation className="size-4" /> Route
             </button>

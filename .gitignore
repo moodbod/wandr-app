@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 .next
+.next-dev.lock
 dist
 dist-ssr
 tsconfig.tsbuildinfo

@@ -93,6 +93,30 @@ export const getActiveForDestination = query({
   },
 });
 
+export const listForCurrentUser = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+
+    if (!userId) {
+      return [];
+    }
+
+    const trips = await ctx.db
+      .query("trips")
+      .withIndex("by_userId_and_updatedAt", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(25);
+
+    return await Promise.all(
+      trips.map(async (trip) => ({
+        trip,
+        stops: await getTripStops(ctx, trip._id),
+      })),
+    );
+  },
+});
+
 export const addStop = mutation({
   args: {
     destinationId: v.string(),

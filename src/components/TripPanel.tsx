@@ -9,7 +9,6 @@ import {
   MapPin,
   Navigation,
   Plus,
-  Route,
   Trash2,
   X,
 } from "lucide-react";
@@ -75,12 +74,12 @@ function TripModeToggle({
   onChange: (mode: RouteMode) => void;
 }) {
   return (
-    <div className="inline-flex rounded-full bg-secondary p-0.5 text-xs font-medium">
+    <div className="inline-flex rounded-full bg-secondary p-1 text-xs font-medium">
       <button
         type="button"
         onClick={() => onChange("walk")}
         className={[
-          "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors",
+          "inline-flex min-h-8 items-center gap-1.5 rounded-full px-3.5 py-1.5 transition-colors",
           mode === "walk" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
         ].join(" ")}
       >
@@ -91,7 +90,7 @@ function TripModeToggle({
         type="button"
         onClick={() => onChange("drive")}
         className={[
-          "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors",
+          "inline-flex min-h-8 items-center gap-1.5 rounded-full px-3.5 py-1.5 transition-colors",
           mode === "drive" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
         ].join(" ")}
       >
@@ -126,24 +125,20 @@ const TripPanel = ({
 
   return (
     <aside className="flex h-full min-h-0 flex-col bg-card text-foreground">
-      <div className="border-b border-border px-4 py-4">
+      <div className="px-4 pb-4 pt-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-accent">
-              <Route className="size-3.5" />
-              Your adventure
-            </div>
-            <h2 className="mt-1 text-xl font-semibold leading-tight">{destination.city}</h2>
+            <h2 className="mt-1 text-2xl font-black leading-none tracking-[-0.04em]">{destination.city}</h2>
           </div>
-          <div className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
+          <div className="rounded-full bg-secondary px-3 py-1.5 text-xs font-bold text-muted-foreground">
             {progress.total} stops
           </div>
         </div>
 
         {trip ? (
-          <div className="mt-3 flex items-center justify-between gap-3">
+          <div className="mt-4 flex items-center justify-between gap-3">
             <TripModeToggle mode={trip.routeMode} onChange={(mode) => onRouteModeChange(trip._id, mode)} />
-            <div className="text-right text-xs text-muted-foreground">
+            <div className="text-right text-xs font-medium text-muted-foreground">
               {trip.status === "active"
                 ? `${progress.finished}/${progress.total} complete`
                 : trip.status === "completed"
@@ -208,21 +203,21 @@ const TripPanel = ({
             ) : null}
 
             {trip.status === "active" && currentSpot && currentStop ? (
-              <div className="rounded-lg border border-accent/30 bg-accent/10 p-3">
-                <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-accent">
+              <div className="rounded-[1.25rem] bg-accent/10 p-4 ring-1 ring-accent/25">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-accent">
                   <Navigation className="size-3.5" />
                   Next up
                 </div>
-                <h3 className="mt-1 text-lg font-semibold leading-tight">{currentSpot.name}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-foreground/80">{currentSpot.tip}</p>
+                <h3 className="mt-2 text-xl font-semibold leading-tight">{currentSpot.name}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{currentSpot.tip}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => onRouteStop(currentSpot)}
                     className={[
-                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                      "inline-flex min-h-9 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition-colors",
                       routedSpotId === currentSpot.id
-                        ? "bg-highlight text-highlight-foreground hover:bg-highlight/90"
+                        ? "bg-foreground text-background hover:bg-foreground/90"
                         : "bg-foreground text-background hover:bg-foreground/90",
                     ].join(" ")}
                   >
@@ -232,7 +227,7 @@ const TripPanel = ({
                   <button
                     type="button"
                     onClick={() => onMarkDone(currentStop._id)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary"
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-card px-3.5 py-2 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-secondary"
                   >
                     <Check className="size-3.5" />
                     Done
@@ -240,7 +235,7 @@ const TripPanel = ({
                   <button
                     type="button"
                     onClick={() => onSkipStop(currentStop._id)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary"
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-card px-3.5 py-2 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-secondary"
                   >
                     <X className="size-3.5" />
                     Skip
@@ -254,7 +249,7 @@ const TripPanel = ({
                 Add spots to build your route.
               </div>
             ) : (
-              <ol className="flex flex-col gap-2">
+              <ol className="flex flex-col gap-3">
                 {stops.map((stop, index) => {
                   const spot = findSpot(destination, stop.spotId);
 
@@ -269,8 +264,8 @@ const TripPanel = ({
                     <li
                       key={stop._id}
                       className={[
-                        "rounded-lg border bg-card p-3 shadow-sm",
-                        isCurrent ? "border-accent/50" : "border-border",
+                        "rounded-[1.15rem] bg-card p-3 shadow-sm ring-1",
+                        isCurrent ? "ring-accent/30" : "ring-border",
                         stop.status === "done" || stop.status === "skipped" ? "opacity-70" : "",
                       ].join(" ")}
                     >
@@ -278,13 +273,13 @@ const TripPanel = ({
                         <img
                           src={spot.image}
                           alt={spot.name}
-                          className="size-14 shrink-0 rounded-md object-cover"
+                          className="size-14 shrink-0 rounded-xl object-cover"
                           loading="lazy"
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <div className="truncate text-sm font-semibold">{spot.name}</div>
+                              <div className="truncate text-sm font-semibold leading-tight">{spot.name}</div>
                               <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <span>{index + 1}</span>
                                 <span className="size-1 rounded-full bg-muted-foreground/50" />
@@ -295,10 +290,10 @@ const TripPanel = ({
                               type="button"
                               onClick={() => onRouteStop(spot)}
                               className={[
-                                "grid size-8 shrink-0 place-items-center rounded-full border transition-colors",
+                                "grid size-9 shrink-0 place-items-center rounded-full bg-card shadow-sm ring-1 transition-colors",
                                 isRouted
-                                  ? "border-highlight bg-highlight text-highlight-foreground"
-                                  : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground",
+                                  ? "ring-foreground bg-foreground text-background"
+                                  : "ring-border text-muted-foreground hover:bg-secondary hover:text-foreground",
                               ].join(" ")}
                               aria-label={isRouted ? `Tracking ${spot.name}` : `Route to ${spot.name}`}
                             >

@@ -13,6 +13,7 @@ type Props = {
   destination: Destination;
   spots: Spot[];
   nextStop?: Spot;
+  highlightedSpotId?: string | null;
   routeStops: Spot[];
   routeOpen: boolean;
   routeMode: "walk" | "drive";
@@ -60,6 +61,7 @@ const MapboxStreetsMap = ({
   destination,
   spots,
   nextStop,
+  highlightedSpotId,
   routeStops,
   routeOpen,
   routeMode,
@@ -159,13 +161,13 @@ const MapboxStreetsMap = ({
     markersRef.current = [];
 
     spots.forEach((spot) => {
-      const isNext = spot.id === nextStop?.id;
+      const isHighlighted = spot.id === highlightedSpotId;
       const button = document.createElement("button");
       button.type = "button";
       button.className = [
         "wandr-photo-marker",
         `wandr-photo-marker--${markerTone(spot)}`,
-        isNext ? "wandr-photo-marker--active" : "",
+        isHighlighted ? "wandr-photo-marker--active" : "",
       ].join(" ");
       button.ariaLabel = `Open details for ${spot.name}`;
       button.addEventListener("click", () => onOpenSpot(spot.id));
@@ -201,7 +203,7 @@ const MapboxStreetsMap = ({
           .addTo(map)
       );
     });
-  }, [nextStop?.id, onOpenSpot, ready, spots]);
+  }, [highlightedSpotId, onOpenSpot, ready, spots]);
 
   useEffect(() => {
     const map = mapRef.current;

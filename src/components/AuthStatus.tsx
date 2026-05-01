@@ -25,7 +25,7 @@ export function AuthStatus({ userName, userEmail, onSignIn }: AuthStatusProps) {
 
   if (isLoading) {
     return (
-      <div className="size-9 animate-pulse rounded-full border border-border bg-card shadow-sm" aria-hidden />
+      <div className="size-10 animate-pulse rounded-full border border-border bg-card sm:size-9" aria-hidden />
     );
   }
 
@@ -34,10 +34,11 @@ export function AuthStatus({ userName, userEmail, onSignIn }: AuthStatusProps) {
       <button
         type="button"
         onClick={onSignIn}
-        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-secondary"
+        className="inline-flex size-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-border bg-card text-xs font-medium text-foreground transition-colors hover:bg-secondary sm:h-8 sm:w-auto sm:px-3"
+        aria-label="Sign in"
       >
         <UserRound className="size-3.5" />
-        Sign in
+        <span className="hidden sm:inline">Sign in</span>
       </button>
     );
   }
@@ -47,10 +48,10 @@ export function AuthStatus({ userName, userEmail, onSignIn }: AuthStatusProps) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-border bg-card py-1 pl-1 pr-3 shadow-sm transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="inline-flex size-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-border bg-card p-0.5 transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-8 sm:w-auto sm:justify-start sm:pl-1 sm:pr-2.5"
           aria-label={`${avatarName} account menu`}
         >
-          <span className="grid size-7 place-items-center overflow-hidden rounded-full">
+          <span className="grid size-8 place-items-center overflow-hidden rounded-full sm:size-6">
             <Facehash
               name={avatarName}
               size={28}
@@ -59,7 +60,7 @@ export function AuthStatus({ userName, userEmail, onSignIn }: AuthStatusProps) {
               className="text-foreground"
             />
           </span>
-          <span className="max-w-24 truncate text-xs font-medium">{avatarName}</span>
+          <span className="hidden max-w-24 truncate text-xs font-medium sm:inline">{avatarName}</span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
