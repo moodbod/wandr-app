@@ -13,14 +13,21 @@ type Props = {
   destination: Destination;
   spots: Spot[];
   nextStop?: Spot;
+  routeStops: Spot[];
   routeOpen: boolean;
   routeMode: "walk" | "drive";
   onOpenSpot: (spotId: string) => void;
+  onRouteSummaryChange?: (summary: RouteSummary | null) => void;
 };
 
 const routeSourceId = "wandr-route";
 const routeLayerId = "wandr-route-line";
+const routeCasingLayerId = "wandr-route-line-casing";
 type LngLat = [number, number];
+export type RouteSummary = {
+  distanceMeters: number;
+  durationSeconds: number;
+};
 type CurrentPosition = {
   lngLat: LngLat;
   accuracy: number;
@@ -53,9 +60,11 @@ const MapboxStreetsMap = ({
   destination,
   spots,
   nextStop,
+  routeStops,
   routeOpen,
   routeMode,
   onOpenSpot,
+  onRouteSummaryChange,
 }: Props) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
@@ -63,6 +72,7 @@ const MapboxStreetsMap = ({
   const markersRef = useRef<Marker[]>([]);
   const [ready, setReady] = useState(false);
   const [currentPosition, setCurrentPosition] = useState<CurrentPosition | null>(null);
+  const [routeCoordinates, setRouteCoordinates] = useState<LngLat[]>([]);
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
   useEffect(() => {
@@ -179,14 +189,10 @@ const MapboxStreetsMap = ({
       avatar.textContent = categoryInitials[spot.category];
       photoWrap.append(avatar);
 
-      const label = document.createElement("span");
-      label.textContent = spot.name;
-      label.className = "wandr-photo-marker__label";
-
       const stem = document.createElement("span");
       stem.className = "wandr-photo-marker__stem";
 
-      visual.append(photoWrap, label, stem);
+      visual.append(photoWrap, stem);
       button.append(visual);
 
       markersRef.current.push(
@@ -203,17 +209,89 @@ const MapboxStreetsMap = ({
       return;
     }
 
+    const routeTargets = routeStops.length > 0 ? routeStops : routeOpen && nextStop ? [nextStop] : [];
+    const origin = currentPosition?.lngLat ?? destination.map.center;
+    const coordinates = [origin, ...routeTargets.map((spot) => spot.lngLat)];
+    const abortController = new AbortController();
+
+    if (coordinates.length < 2 || !accessToken) {
+      setRouteCoordinates([]);
+      onRouteSummaryChange?.(null);
+      return () => abortController.abort();
+    }
+
+    const profile = routeMode === "walk" ? "walking" : "driving";
+    const coordinateParam = coordinates.map(([lng, lat]) => `${lng},${lat}`).join(";");
+    const url = new URL(`https://api.mapbox.com/directions/v5/mapbox/${profile}/${coordinateParam}`);
+    url.searchParams.set("alternatives", "false");
+    url.searchParams.set("continue_straight", "false");
+    url.searchParams.set("geometries", "geojson");
+    url.searchParams.set("overview", "full");
+    url.searchParams.set("steps", "false");
+    url.searchParams.set("access_token", accessToken);
+
+    fetch(url, { signal: abortController.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Directions request failed: ${response.status}`);
+        }
+
+        return response.json() as Promise<{
+          routes?: Array<{
+            distance?: number;
+            duration?: number;
+            geometry?: { coordinates?: LngLat[] };
+          }>;
+        }>;
+      })
+      .then((data) => {
+        const route = data.routes?.[0];
+        setRouteCoordinates(route?.geometry?.coordinates ?? []);
+        onRouteSummaryChange?.(
+          typeof route?.distance === "number" && typeof route.duration === "number"
+            ? { distanceMeters: route.distance, durationSeconds: route.duration }
+            : null,
+        );
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        setRouteCoordinates([]);
+        onRouteSummaryChange?.(null);
+      });
+
+    return () => abortController.abort();
+  }, [
+    accessToken,
+    currentPosition?.lngLat,
+    destination.map.center,
+    nextStop,
+    ready,
+    routeMode,
+    routeOpen,
+    routeStops,
+    onRouteSummaryChange,
+  ]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) {
+      return;
+    }
+
     const data: GeoJSON.FeatureCollection<GeoJSON.LineString> = {
       type: "FeatureCollection",
       features:
-        routeOpen && nextStop
+        routeCoordinates.length > 1
           ? [
               {
                 type: "Feature",
                 properties: {},
                 geometry: {
                   type: "LineString",
-                  coordinates: [currentPosition?.lngLat ?? destination.map.center, nextStop.lngLat],
+                  coordinates: routeCoordinates,
                 },
               },
             ]
@@ -226,22 +304,42 @@ const MapboxStreetsMap = ({
     } else {
       map.addSource(routeSourceId, { type: "geojson", data });
       map.addLayer({
+        id: routeCasingLayerId,
+        type: "line",
+        source: routeSourceId,
+        layout: {
+          "line-cap": "round",
+          "line-join": "round",
+        },
+        paint: {
+          "line-color": "hsl(0, 0%, 100%)",
+          "line-opacity": 0.9,
+          "line-width": routeMode === "drive" ? 7 : 6,
+        },
+      });
+      map.addLayer({
         id: routeLayerId,
         type: "line",
         source: routeSourceId,
+        layout: {
+          "line-cap": "round",
+          "line-join": "round",
+        },
         paint: {
           "line-color": "hsl(14, 80%, 56%)",
-          "line-width": routeMode === "drive" ? 3 : 2,
-          "line-dasharray": routeMode === "drive" ? [1, 0] : [1, 3],
+          "line-width": routeMode === "drive" ? 4 : 3,
         },
       });
     }
 
-    if (map.getLayer(routeLayerId)) {
-      map.setPaintProperty(routeLayerId, "line-width", routeMode === "drive" ? 3 : 2);
-      map.setPaintProperty(routeLayerId, "line-dasharray", routeMode === "drive" ? [1, 0] : [1, 3]);
+    if (map.getLayer(routeCasingLayerId)) {
+      map.setPaintProperty(routeCasingLayerId, "line-width", routeMode === "drive" ? 7 : 6);
     }
-  }, [currentPosition?.lngLat, destination.map.center, nextStop, ready, routeMode, routeOpen]);
+
+    if (map.getLayer(routeLayerId)) {
+      map.setPaintProperty(routeLayerId, "line-width", routeMode === "drive" ? 4 : 3);
+    }
+  }, [ready, routeCoordinates, routeMode]);
 
   if (!accessToken) {
     return (

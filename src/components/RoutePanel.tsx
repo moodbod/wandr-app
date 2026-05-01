@@ -1,20 +1,32 @@
-import { Footprints, Car, X, Navigation } from "lucide-react";
+import { Car, Footprints, Navigation, X } from "lucide-react";
 import type { Spot } from "@/data/destinations";
+import type { RouteSummary } from "@/components/MapboxStreetsMap";
 
 type Props = {
   spot: Spot;
   mode: "walk" | "drive";
+  summary: RouteSummary | null;
+  isActive: boolean;
   onModeChange: (m: "walk" | "drive") => void;
   onClose: () => void;
   onStart: () => void;
 };
 
-// Rough estimates. Walking ~5 km/h, driving ~25 km/h in city.
-const distanceKm = (spot: Spot) => +(spot.walkMin / 12).toFixed(1);
+function formatMinutes(seconds: number) {
+  return Math.max(1, Math.round(seconds / 60));
+}
 
-const RoutePanel = ({ spot, mode, onModeChange, onClose, onStart }: Props) => {
-  const eta = mode === "walk" ? spot.walkMin : spot.driveMin;
-  const km = distanceKm(spot);
+function formatDistance(meters: number) {
+  if (meters >= 1000) {
+    return `${(meters / 1000).toFixed(1)} km`;
+  }
+
+  return `${Math.max(1, Math.round(meters / 10) * 10)} m`;
+}
+
+const RoutePanel = ({ spot, mode, summary, isActive, onModeChange, onClose, onStart }: Props) => {
+  const eta = summary ? formatMinutes(summary.durationSeconds) : null;
+  const distance = summary ? formatDistance(summary.distanceMeters) : "Calculating route";
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -45,8 +57,11 @@ const RoutePanel = ({ spot, mode, onModeChange, onClose, onStart }: Props) => {
         </div>
 
         <div className="ml-auto text-right">
-          <div className="text-base font-semibold tabular-nums leading-none">{eta} min</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">{km} km · {mode === "walk" ? "easy walk" : "short drive"}</div>
+          <div className="text-base font-semibold tabular-nums leading-none">{eta ? `${eta} min` : "--"}</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            {distance}
+            {summary ? ` · ${mode === "walk" ? "fastest walk" : "fastest drive"}` : ""}
+          </div>
         </div>
       </div>
 
@@ -62,7 +77,7 @@ const RoutePanel = ({ spot, mode, onModeChange, onClose, onStart }: Props) => {
           onClick={onStart}
           className="inline-flex items-center gap-1.5 bg-foreground text-background rounded-full px-3 py-1.5 text-xs font-medium hover:bg-foreground/90 transition-colors"
         >
-          <Navigation className="size-3.5" /> Start
+          <Navigation className="size-3.5" /> {isActive ? "Tracking" : "Start"}
         </button>
       </div>
     </div>

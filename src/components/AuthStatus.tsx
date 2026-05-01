@@ -1,7 +1,16 @@
 "use client";
 
 import { useAuthActions, useConvexAuth } from "@convex-dev/auth/react";
-import { LogOut, UserRound } from "lucide-react";
+import { Facehash } from "facehash";
+import { LogOut, Settings, UserRound } from "lucide-react";
+import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type AuthStatusProps = {
   userName?: string;
@@ -12,10 +21,11 @@ type AuthStatusProps = {
 export function AuthStatus({ userName, userEmail, onSignIn }: AuthStatusProps) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { signOut } = useAuthActions();
+  const avatarName = userName || userEmail || "Wandr";
 
   if (isLoading) {
     return (
-      <div className="h-8 w-20 animate-pulse rounded-full border border-border bg-card shadow-sm" aria-hidden />
+      <div className="size-9 animate-pulse rounded-full border border-border bg-card shadow-sm" aria-hidden />
     );
   }
 
@@ -33,17 +43,41 @@ export function AuthStatus({ userName, userEmail, onSignIn }: AuthStatusProps) {
   }
 
   return (
-    <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card py-1 pl-2 pr-1 shadow-sm">
-      <UserRound className="size-3.5 text-accent" />
-      <span className="max-w-24 truncate text-xs font-medium">{userName || userEmail || "Wandr"}</span>
-      <button
-        type="button"
-        onClick={() => void signOut()}
-        className="grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
-        aria-label="Sign out"
-      >
-        <LogOut className="size-3.5" />
-      </button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-border bg-card py-1 pl-1 pr-3 shadow-sm transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          aria-label={`${avatarName} account menu`}
+        >
+          <span className="grid size-7 place-items-center overflow-hidden rounded-full">
+            <Facehash
+              name={avatarName}
+              size={28}
+              variant="solid"
+              intensity3d="subtle"
+              className="text-foreground"
+            />
+          </span>
+          <span className="max-w-24 truncate text-xs font-medium">{avatarName}</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuItem asChild>
+          <Link href="/settings" className="gap-2">
+            <Settings className="size-4" />
+            Settings
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="gap-2 text-destructive focus:text-destructive"
+          onSelect={() => void signOut()}
+        >
+          <LogOut className="size-4" />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

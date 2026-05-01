@@ -1,4 +1,4 @@
-import { X, Footprints, Car, Navigation, MapPin, Sparkles } from "lucide-react";
+import { X, Footprints, Car, Navigation, MapPin, Sparkles, Plus, Check } from "lucide-react";
 import type { Spot } from "@/data/destinations";
 
 type Props = {
@@ -7,6 +7,8 @@ type Props = {
   onClose: () => void;
   onSetNextStop: (spot: Spot) => void;
   onRoute: (spot: Spot) => void;
+  onAddToTrip: (spot: Spot) => void;
+  isInTrip: boolean;
 };
 
 const categoryLabel: Record<Spot["category"], string> = {
@@ -16,7 +18,7 @@ const categoryLabel: Record<Spot["category"], string> = {
   routes: "Route",
 };
 
-const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute }: Props) => {
+const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToTrip, isInTrip }: Props) => {
   if (!spot) return null;
 
   return (
@@ -94,23 +96,36 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute }: Props)
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => onSetNextStop(spot)}
-              disabled={isNextStop}
+              onClick={() => onAddToTrip(spot)}
+              disabled={isInTrip}
               className={[
-                "flex-1 inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
-                isNextStop
+                "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
+                isInTrip
                   ? "bg-secondary text-muted-foreground cursor-default"
                   : "bg-foreground text-background hover:bg-foreground/90",
               ].join(" ")}
             >
+              {isInTrip ? <Check className="size-4" /> : <Plus className="size-4" />}
+              {isInTrip ? "In trip" : "Add to trip"}
+            </button>
+            <button
+              onClick={() => onSetNextStop(spot)}
+              disabled={isNextStop}
+              className={[
+                "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
+                isNextStop
+                  ? "bg-secondary text-muted-foreground cursor-default"
+                  : "border border-border hover:bg-secondary",
+              ].join(" ")}
+            >
               <MapPin className="size-4" />
-              {isNextStop ? "Your next stop" : "Set as next stop"}
+              {isNextStop ? "Next stop" : "Set next"}
             </button>
             <button
               onClick={() => onRoute(spot)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium border border-border hover:bg-secondary transition-colors"
+              className="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium border border-border hover:bg-secondary transition-colors"
             >
               <Navigation className="size-4" /> Route
             </button>

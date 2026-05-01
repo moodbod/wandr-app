@@ -40,4 +40,26 @@ export default defineSchema({
     tag: v.string(),
     image: v.string(),
   }).index("by_destination", ["destinationId"]),
+  trips: defineTable({
+    userId: v.id("users"),
+    destinationId: v.string(),
+    title: v.string(),
+    status: v.union(v.literal("planning"), v.literal("active"), v.literal("completed")),
+    routeMode: v.union(v.literal("walk"), v.literal("drive")),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_destinationId_and_status", ["userId", "destinationId", "status"])
+    .index("by_userId_and_destinationId", ["userId", "destinationId"]),
+  tripStops: defineTable({
+    tripId: v.id("trips"),
+    destinationId: v.string(),
+    spotId: v.string(),
+    position: v.number(),
+    status: v.union(v.literal("planned"), v.literal("current"), v.literal("done"), v.literal("skipped")),
+    updatedAt: v.number(),
+  })
+    .index("by_tripId_and_position", ["tripId", "position"])
+    .index("by_tripId_and_spotId", ["tripId", "spotId"]),
 });
