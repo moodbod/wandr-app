@@ -68,12 +68,22 @@ function markerTone(spot: Spot) {
   return "see";
 }
 
-function markerClassName(spot: Spot, isHighlighted: boolean) {
-  return [
-    "wandr-photo-marker",
-    `wandr-photo-marker--${markerTone(spot)}`,
-    isHighlighted ? "wandr-photo-marker--active" : "",
-  ].join(" ");
+const wandrMarkerClassNames = [
+  "wandr-photo-marker",
+  "wandr-photo-marker--see",
+  "wandr-photo-marker--eat",
+  "wandr-photo-marker--gems",
+  "wandr-photo-marker--routes",
+  "wandr-photo-marker--active",
+];
+
+function applyWandrMarkerClasses(element: HTMLElement, spot: Spot, isHighlighted: boolean) {
+  element.classList.remove(...wandrMarkerClassNames);
+  element.classList.add("wandr-photo-marker", `wandr-photo-marker--${markerTone(spot)}`);
+
+  if (isHighlighted) {
+    element.classList.add("wandr-photo-marker--active");
+  }
 }
 
 function getFitBoundsPadding(map: MapboxMap) {
@@ -261,7 +271,7 @@ const MapboxStreetsMap = ({
 
       const button = document.createElement("button");
       button.type = "button";
-      button.className = markerClassName(spot, spot.id === highlightedSpotId);
+      applyWandrMarkerClasses(button, spot, spot.id === highlightedSpotId);
       button.ariaLabel = `Open details for ${spot.name}`;
       button.addEventListener("click", () => onOpenSpot(spot.id));
 
@@ -306,14 +316,15 @@ const MapboxStreetsMap = ({
     const visibleIds = visibleSpotIds ? new Set(visibleSpotIds) : null;
     const spotMap = new Map(spots.map((spot) => [spot.id, spot]));
 
-    markersRef.current.forEach(({ element }, spotId) => {
+    markersRef.current.forEach(({ element, marker }, spotId) => {
       const spot = spotMap.get(spotId);
 
       if (!spot) {
         return;
       }
 
-      element.className = markerClassName(spot, spot.id === highlightedSpotId);
+      marker.setLngLat(spot.lngLat);
+      applyWandrMarkerClasses(element, spot, spot.id === highlightedSpotId);
       element.hidden = visibleIds ? !visibleIds.has(spotId) : false;
     });
   }, [highlightedSpotId, ready, spots, visibleSpotIds]);
