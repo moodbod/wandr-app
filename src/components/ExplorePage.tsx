@@ -691,7 +691,12 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   return (
     <main className="fixed inset-x-0 bottom-[calc(0px_-_env(safe-area-inset-bottom))] top-[calc(0px_-_env(safe-area-inset-top))] overflow-hidden bg-background text-foreground">
       {/* Map */}
-      <div className={["fixed inset-0", showDesktopTripPanel ? "lg:left-96" : ""].join(" ")}>
+      <div
+        className={[
+          "fixed inset-x-0 bottom-[calc(0px_-_env(safe-area-inset-bottom))] top-[calc(0px_-_env(safe-area-inset-top))]",
+          showDesktopTripPanel ? "lg:left-96" : "",
+        ].join(" ")}
+      >
         <MapboxStreetsMap
           mapConfig={namibiaMap}
           spots={allSpots}
