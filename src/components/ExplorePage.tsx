@@ -363,8 +363,8 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   }, [authLoading, currentUser, isAuthenticated]);
 
   const handleOpenSpot = useCallback((spotId: string) => {
-    runGatedAction(() => setOpenSpotId(spotId));
-  }, [runGatedAction]);
+    setOpenSpotId(spotId);
+  }, []);
 
   const handleOnboardingComplete = () => {
     setOnboardingOpen(false);
@@ -689,7 +689,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   }
 
   return (
-    <main className="fixed inset-x-0 bottom-[calc(0px_-_env(safe-area-inset-bottom))] top-[calc(0px_-_env(safe-area-inset-top))] overflow-hidden bg-background text-foreground">
+    <main className="fixed inset-x-0 bottom-0 top-[calc(0px_-_env(safe-area-inset-top))] overflow-hidden bg-transparent text-foreground">
       {/* Map */}
       <div
         className={[
@@ -900,7 +900,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
               </div>
 
               <div
-                className="group overflow-hidden rounded-[1.45rem] bg-foreground text-left text-background shadow-xl shadow-foreground/15 transition-transform active:scale-[0.99] sm:rounded-[1.35rem] sm:border sm:border-border sm:bg-card sm:text-foreground sm:shadow-2xl sm:shadow-foreground/15 sm:hover:border-foreground/20"
+                className="group -mx-2 overflow-hidden rounded-t-[1.45rem] bg-foreground text-left text-background shadow-xl shadow-foreground/15 transition-transform active:scale-[0.99] sm:mx-0 sm:rounded-[1.35rem] sm:border sm:border-border sm:bg-card sm:text-foreground sm:shadow-2xl sm:shadow-foreground/15 sm:hover:border-foreground/20"
               >
                 <div className="relative min-h-[7.6rem] sm:grid sm:min-h-[10.5rem] sm:grid-cols-[8rem_1fr]">
                   <div className="absolute inset-0 sm:relative sm:min-h-[10.5rem]">
@@ -941,7 +941,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
                       <div className="mt-1 flex flex-wrap gap-2 sm:mt-auto">
                         <button
                           type="button"
-                          onClick={() => runGatedAction(() => setOpenSpotId(nextStop.id))}
+                          onClick={() => handleOpenSpot(nextStop.id)}
                           className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-white/90 sm:min-h-9 sm:bg-foreground sm:px-3.5 sm:py-2 sm:font-medium sm:text-background sm:hover:bg-foreground/90"
                         >
                           <Eye className="size-3.5" /> View spot

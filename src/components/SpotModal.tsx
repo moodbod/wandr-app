@@ -24,7 +24,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center p-0 animate-in fade-in duration-200 sm:items-center sm:p-4"
+      className="fixed inset-x-0 bottom-[calc(0px_-_env(safe-area-inset-bottom))] top-0 z-50 flex items-end justify-center p-0 animate-in fade-in duration-200 sm:inset-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="spot-title"
@@ -35,7 +35,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
         aria-label="Close"
       />
 
-      <div className="relative flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[1.75rem] border border-border bg-card shadow-2xl animate-in slide-in-from-bottom-6 duration-300 sm:max-h-[88dvh] sm:rounded-3xl sm:zoom-in-95">
+      <div className="relative flex max-h-[calc(92dvh+env(safe-area-inset-bottom))] w-full max-w-md flex-col overflow-hidden rounded-t-[1.75rem] border border-border bg-card shadow-2xl animate-in slide-in-from-bottom-6 duration-300 sm:max-h-[88dvh] sm:rounded-3xl sm:zoom-in-95">
         <div className="absolute left-1/2 top-2 z-10 h-1.5 w-12 -translate-x-1/2 rounded-full bg-background/75 sm:hidden" />
         {/* Image */}
         <div className="relative aspect-[5/3] w-full shrink-0">
@@ -103,7 +103,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
           </div>
 
           {/* Actions */}
-          <div className="sticky bottom-0 -mx-4 grid grid-cols-2 gap-2 border-t border-border bg-card/95 p-4 backdrop-blur-md sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
+          <div className="sticky bottom-0 -mx-4 grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 pb-0 pt-4 backdrop-blur-md sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
             <button
               onClick={() => onAddToTrip(spot)}
               disabled={isInTrip}

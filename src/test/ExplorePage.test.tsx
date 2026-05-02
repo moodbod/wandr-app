@@ -26,10 +26,12 @@ const testState = vi.hoisted(() => ({
     routeStops?: Array<{ id: string }>;
   }>,
   mutationMocks: [] as Array<ReturnType<typeof vi.fn>>,
+  authenticated: true,
+  authDialogOpen: false,
 }));
 
 vi.mock("@convex-dev/auth/react", () => ({
-  useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
+  useConvexAuth: () => ({ isAuthenticated: testState.authenticated, isLoading: false }),
 }));
 
 vi.mock("next/dynamic", () => ({
@@ -143,11 +145,16 @@ vi.mock("@/components/TripPanel", () => ({
 }));
 
 vi.mock("@/components/SpotModal", () => ({
-  default: () => <div data-testid="spot-modal" />,
+  default: (props: { spot: { name: string } | null }) => (
+    <div data-testid="spot-modal">{props.spot ? props.spot.name : null}</div>
+  ),
 }));
 
 vi.mock("@/components/AuthDialog", () => ({
-  AuthDialog: () => null,
+  AuthDialog: (props: { open: boolean }) => {
+    testState.authDialogOpen = props.open;
+    return props.open ? <div data-testid="auth-dialog" /> : null;
+  },
 }));
 
 vi.mock("@/components/OnboardingDialog", () => ({
@@ -164,6 +171,8 @@ describe("ExplorePage recommendation card", () => {
     testState.resumeTripData = null;
     testState.mapProps = [];
     testState.mutationMocks = [];
+    testState.authenticated = true;
+    testState.authDialogOpen = false;
     window.localStorage.clear();
     vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
     vi.stubGlobal(
@@ -211,6 +220,20 @@ describe("ExplorePage recommendation card", () => {
         routeOpen: true,
       });
     });
+  });
+
+  it("lets signed-out visitors open spot details without prompting for auth", async () => {
+    testState.authenticated = false;
+
+    render(<ExplorePage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /view spot/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("spot-modal")).toHaveTextContent(firstSpot.name);
+    });
+    expect(screen.queryByTestId("auth-dialog")).not.toBeInTheDocument();
+    expect(testState.authDialogOpen).toBe(false);
   });
 
   it("keeps planning trip actions intact", () => {
