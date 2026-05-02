@@ -139,6 +139,22 @@ const MapboxStreetsMap = ({
   }, [accessToken, mapConfig.center, mapConfig.zoom]);
 
   useEffect(() => {
+    const container = containerRef.current;
+    const map = mapRef.current;
+    if (!container || !map) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      map.resize();
+    });
+
+    resizeObserver.observe(container);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) {
       return;
