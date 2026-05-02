@@ -874,13 +874,13 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
       {/* Bottom */}
       <div
         className={[
-          "absolute bottom-0 left-0 right-0 z-30 sm:px-6 sm:pb-6",
+          "absolute bottom-[calc(0px_-_env(safe-area-inset-bottom))] left-0 right-0 z-30 sm:bottom-0 sm:px-6 sm:pb-6",
           showDesktopTripPanel ? "lg:left-96" : "",
         ].join(" ")}
       >
         <div className="mx-auto flex w-[calc(100%-1rem)] max-w-[24.5rem] flex-col sm:w-full sm:max-w-2xl sm:gap-2.5">
           {nextStop && routeOpen ? (
-            <div className="rounded-t-[2rem] bg-card px-2 pb-0 pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
+            <div className="rounded-t-[2rem] bg-card px-2 pb-[env(safe-area-inset-bottom)] pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
               <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
               <RoutePanel
                 spot={nextStop}
@@ -916,7 +916,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
               </div>
 
               <div
-                className="group -mx-2 overflow-hidden rounded-t-[1.45rem] bg-foreground text-left text-background shadow-xl shadow-foreground/15 transition-transform active:scale-[0.99] sm:mx-0 sm:rounded-[1.35rem] sm:border sm:border-border sm:bg-card sm:text-foreground sm:shadow-2xl sm:shadow-foreground/15 sm:hover:border-foreground/20"
+                className="group -mx-2 overflow-hidden rounded-t-[1.45rem] bg-foreground pb-[env(safe-area-inset-bottom)] text-left text-background shadow-xl shadow-foreground/15 transition-transform active:scale-[0.99] sm:mx-0 sm:rounded-[1.35rem] sm:border sm:border-border sm:bg-card sm:pb-0 sm:text-foreground sm:shadow-2xl sm:shadow-foreground/15 sm:hover:border-foreground/20"
               >
                 <div className="relative min-h-[7.6rem] sm:grid sm:min-h-[10.5rem] sm:grid-cols-[8rem_1fr]">
                   <div className="absolute inset-0 sm:relative sm:min-h-[10.5rem]">

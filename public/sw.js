@@ -1,4 +1,4 @@
-const CACHE_NAME = "wandr-pwa-v3";
+const CACHE_NAME = "wandr-pwa-v4";
 const APP_SHELL = ["/offline.html", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 function cacheResponse(request, response) {

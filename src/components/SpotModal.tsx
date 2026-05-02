@@ -103,7 +103,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
           </div>
 
           {/* Actions */}
-          <div className="sticky bottom-0 -mx-4 grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 pb-0 pt-4 backdrop-blur-md sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
+          <div className="sticky bottom-[calc(0px_-_env(safe-area-inset-bottom))] -mx-4 grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 pb-[env(safe-area-inset-bottom)] pt-4 backdrop-blur-md sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
             <button
               onClick={() => onAddToTrip(spot)}
               disabled={isInTrip}
