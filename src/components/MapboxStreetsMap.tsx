@@ -142,8 +142,11 @@ const MapboxStreetsMap = ({
     geolocateControlRef.current = geolocateControl;
     map.on("load", () => {
       setReady(true);
+      map.resize();
+      requestAnimationFrame(() => map.resize());
     });
     mapRef.current = map;
+    requestAnimationFrame(() => map.resize());
 
     return () => {
       geolocateControlRef.current = null;
@@ -170,13 +173,22 @@ const MapboxStreetsMap = ({
       return;
     }
 
-    const resizeObserver = new ResizeObserver(() => {
+    const resizeMap = () => {
       map.resize();
-    });
+    };
+
+    const resizeObserver = new ResizeObserver(resizeMap);
 
     resizeObserver.observe(container);
+    window.addEventListener("resize", resizeMap);
+    window.visualViewport?.addEventListener("resize", resizeMap);
+    requestAnimationFrame(resizeMap);
 
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", resizeMap);
+      window.visualViewport?.removeEventListener("resize", resizeMap);
+    };
   }, []);
 
   useEffect(() => {
