@@ -76,6 +76,21 @@ function markerClassName(spot: Spot, isHighlighted: boolean) {
   ].join(" ");
 }
 
+function getFitBoundsPadding(map: MapboxMap) {
+  const canvas = map.getCanvas();
+  const width = canvas.clientWidth || window.innerWidth;
+  const height = canvas.clientHeight || window.innerHeight;
+  const horizontalBudget = Math.max(width - 80, 0);
+  const verticalBudget = Math.max(height - 80, 0);
+
+  return {
+    top: Math.min(140, Math.floor(verticalBudget * 0.28)),
+    right: Math.min(80, Math.floor(horizontalBudget * 0.18)),
+    bottom: Math.min(260, Math.floor(verticalBudget * 0.46)),
+    left: Math.min(80, Math.floor(horizontalBudget * 0.18)),
+  };
+}
+
 const MapboxStreetsMap = ({
   mapConfig,
   spots,
@@ -218,7 +233,7 @@ const MapboxStreetsMap = ({
     const bounds = new LngLatBounds();
     spots.forEach((spot) => bounds.extend(spot.lngLat));
     map.fitBounds(bounds, {
-      padding: { top: 140, right: 80, bottom: 260, left: 80 },
+      padding: getFitBoundsPadding(map),
       maxZoom: 12,
       duration: 700,
       essential: true,
@@ -451,7 +466,7 @@ const MapboxStreetsMap = ({
     );
   }
 
-  return <div ref={containerRef} className="absolute inset-0" aria-label={`Map of ${mapConfig.label}`} />;
+  return <div ref={containerRef} className="absolute inset-0 min-h-dvh w-full" aria-label={`Map of ${mapConfig.label}`} />;
 };
 
 export default MapboxStreetsMap;
