@@ -71,7 +71,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
         </div>
 
         {/* Body */}
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:p-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 pb-0 sm:p-5">
           {/* ETA row */}
           <div className="grid grid-cols-2 gap-2">
             <div className="flex items-center gap-2.5 rounded-2xl bg-secondary px-3 py-3">
@@ -103,7 +103,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
           </div>
 
           {/* Actions */}
-          <div className="sticky bottom-0 -mx-4 -mb-[calc(env(safe-area-inset-bottom)+1rem)] grid grid-cols-2 gap-2 border-t border-border bg-card/95 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] backdrop-blur-md sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
+          <div className="sticky bottom-0 -mx-4 grid grid-cols-2 gap-2 border-t border-border bg-card/95 p-4 backdrop-blur-md sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
             <button
               onClick={() => onAddToTrip(spot)}
               disabled={isInTrip}

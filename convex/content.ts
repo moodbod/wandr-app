@@ -293,7 +293,7 @@ export const seedNamibiaDefaults = mutation({
     await requireAdmin(ctx);
     let insertedDestinations = 0;
     let insertedSpots = 0;
-    let updatedImages = 0;
+    let updatedSpots = 0;
     const now = Date.now();
 
     for (const destination of defaultDestinations) {
@@ -329,10 +329,45 @@ export const seedNamibiaDefaults = mutation({
 
         if (existingSpot) {
           const seedImage = seedImageBySlug[spot.slug] ?? placeholderImage;
+          const patch: Partial<Doc<"spots">> = {};
 
+          if (existingSpot.destinationId !== destinationDoc._id) {
+            patch.destinationId = destinationDoc._id;
+          }
+          if (existingSpot.name !== spot.name) {
+            patch.name = spot.name;
+          }
+          if (existingSpot.category !== spot.category) {
+            patch.category = spot.category;
+          }
+          if (existingSpot.top !== spot.top) {
+            patch.top = spot.top;
+          }
+          if (existingSpot.left !== spot.left) {
+            patch.left = spot.left;
+          }
+          if (JSON.stringify(existingSpot.lngLat ?? []) !== JSON.stringify(spot.lngLat)) {
+            patch.lngLat = [...spot.lngLat];
+          }
+          if (existingSpot.walkMin !== spot.walkMin) {
+            patch.walkMin = spot.walkMin;
+          }
+          if (existingSpot.driveMin !== spot.driveMin) {
+            patch.driveMin = spot.driveMin;
+          }
+          if (existingSpot.tip !== spot.tip) {
+            patch.tip = spot.tip;
+          }
+          if (existingSpot.tag !== spot.tag) {
+            patch.tag = spot.tag;
+          }
           if (!existingSpot.image || existingSpot.image === placeholderImage) {
-            await ctx.db.patch(existingSpot._id, { image: seedImage, updatedAt: now });
-            updatedImages += 1;
+            patch.image = seedImage;
+          }
+
+          if (Object.keys(patch).length > 0) {
+            await ctx.db.patch(existingSpot._id, { ...patch, updatedAt: now });
+            updatedSpots += 1;
           }
 
           continue;
@@ -350,6 +385,6 @@ export const seedNamibiaDefaults = mutation({
       }
     }
 
-    return { insertedDestinations, insertedSpots, updatedImages };
+    return { insertedDestinations, insertedSpots, updatedSpots };
   },
 });

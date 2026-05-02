@@ -853,7 +853,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
       {/* Bottom */}
       <div
         className={[
-          "absolute bottom-[env(safe-area-inset-bottom)] left-0 right-0 z-30 sm:bottom-0 sm:px-6 sm:pb-6",
+          "absolute bottom-0 left-0 right-0 z-30 sm:px-6 sm:pb-6",
           showDesktopTripPanel ? "lg:left-96" : "",
         ].join(" ")}
       >

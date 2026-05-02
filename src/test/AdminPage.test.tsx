@@ -80,7 +80,7 @@ vi.mock("convex/react", () => ({
       }
 
       if (functionName === "content:seedNamibiaDefaults") {
-        return { insertedDestinations: 0, insertedSpots: 0, updatedImages: 0 };
+        return { insertedDestinations: 0, insertedSpots: 0, updatedSpots: 0 };
       }
 
       return "spot-2";

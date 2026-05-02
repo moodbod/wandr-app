@@ -197,13 +197,13 @@ export default function AdminPage() {
 
     try {
       const result = await seedDefaults({});
-      const changedCount = result.insertedDestinations + result.insertedSpots + result.updatedImages;
+      const changedCount = result.insertedDestinations + result.insertedSpots + result.updatedSpots;
 
       if (changedCount === 0) {
         setMessage("Seed data is already up to date.");
       } else {
         setMessage(
-          `Seeded ${result.insertedDestinations} destinations, ${result.insertedSpots} spots, and updated ${result.updatedImages} images.`,
+          `Seeded ${result.insertedDestinations} destinations, ${result.insertedSpots} spots, and updated ${result.updatedSpots} existing spots.`,
         );
       }
     } catch (err) {
