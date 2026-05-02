@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import "mapbox-gl/dist/mapbox-gl.css";
 import mapboxgl, {
   LngLatBounds,
   type GeolocateControl,
@@ -17,6 +18,7 @@ type Props = {
     label: string;
   };
   spots: Spot[];
+  visibleSpotIds?: string[];
   nextStop?: Spot;
   highlightedSpotId?: string | null;
   routeStops: Spot[];
@@ -37,6 +39,10 @@ export type RouteSummary = {
 type CurrentPosition = {
   lngLat: LngLat;
   accuracy: number;
+};
+type MarkerEntry = {
+  marker: Marker;
+  element: HTMLButtonElement;
 };
 
 const categoryInitials: Record<Spot["category"], string> = {
@@ -62,9 +68,18 @@ function markerTone(spot: Spot) {
   return "see";
 }
 
+function markerClassName(spot: Spot, isHighlighted: boolean) {
+  return [
+    "wandr-photo-marker",
+    `wandr-photo-marker--${markerTone(spot)}`,
+    isHighlighted ? "wandr-photo-marker--active" : "",
+  ].join(" ");
+}
+
 const MapboxStreetsMap = ({
   mapConfig,
   spots,
+  visibleSpotIds,
   nextStop,
   highlightedSpotId,
   routeStops,
@@ -76,7 +91,8 @@ const MapboxStreetsMap = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
   const geolocateControlRef = useRef<GeolocateControl | null>(null);
-  const markersRef = useRef<Marker[]>([]);
+  const markersRef = useRef<Map<string, MarkerEntry>>(new Map());
+  const hasTriggeredGeolocationRef = useRef(false);
   const [ready, setReady] = useState(false);
   const [currentPosition, setCurrentPosition] = useState<CurrentPosition | null>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<LngLat[]>([]);
@@ -88,6 +104,7 @@ const MapboxStreetsMap = ({
     }
 
     mapboxgl.accessToken = accessToken;
+    const markers = markersRef.current;
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
@@ -125,18 +142,26 @@ const MapboxStreetsMap = ({
     geolocateControlRef.current = geolocateControl;
     map.on("load", () => {
       setReady(true);
-      geolocateControl.trigger();
     });
     mapRef.current = map;
 
     return () => {
       geolocateControlRef.current = null;
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
+      markers.forEach(({ marker }) => marker.remove());
+      markers.clear();
       map.remove();
       mapRef.current = null;
     };
   }, [accessToken, mapConfig.center, mapConfig.zoom]);
+
+  useEffect(() => {
+    if (!ready || !routeOpen || currentPosition || hasTriggeredGeolocationRef.current) {
+      return;
+    }
+
+    hasTriggeredGeolocationRef.current = true;
+    geolocateControlRef.current?.trigger();
+  }, [currentPosition, ready, routeOpen]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -194,18 +219,22 @@ const MapboxStreetsMap = ({
       return;
     }
 
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
+    const nextSpotIds = new Set(spots.map((spot) => spot.id));
+    markersRef.current.forEach(({ marker }, spotId) => {
+      if (!nextSpotIds.has(spotId)) {
+        marker.remove();
+        markersRef.current.delete(spotId);
+      }
+    });
 
     spots.forEach((spot) => {
-      const isHighlighted = spot.id === highlightedSpotId;
+      if (markersRef.current.has(spot.id)) {
+        return;
+      }
+
       const button = document.createElement("button");
       button.type = "button";
-      button.className = [
-        "wandr-photo-marker",
-        `wandr-photo-marker--${markerTone(spot)}`,
-        isHighlighted ? "wandr-photo-marker--active" : "",
-      ].join(" ");
+      button.className = markerClassName(spot, spot.id === highlightedSpotId);
       button.ariaLabel = `Open details for ${spot.name}`;
       button.addEventListener("click", () => onOpenSpot(spot.id));
 
@@ -234,13 +263,33 @@ const MapboxStreetsMap = ({
       visual.append(photoWrap, stem);
       button.append(visual);
 
-      markersRef.current.push(
-        new mapboxgl.Marker({ element: button, anchor: "bottom" })
-          .setLngLat(spot.lngLat)
-          .addTo(map)
-      );
+      const marker = new mapboxgl.Marker({ element: button, anchor: "bottom" })
+        .setLngLat(spot.lngLat)
+        .addTo(map);
+
+      markersRef.current.set(spot.id, { marker, element: button });
     });
   }, [highlightedSpotId, onOpenSpot, ready, spots]);
+
+  useEffect(() => {
+    if (!ready) {
+      return;
+    }
+
+    const visibleIds = visibleSpotIds ? new Set(visibleSpotIds) : null;
+    const spotMap = new Map(spots.map((spot) => [spot.id, spot]));
+
+    markersRef.current.forEach(({ element }, spotId) => {
+      const spot = spotMap.get(spotId);
+
+      if (!spot) {
+        return;
+      }
+
+      element.className = markerClassName(spot, spot.id === highlightedSpotId);
+      element.hidden = visibleIds ? !visibleIds.has(spotId) : false;
+    });
+  }, [highlightedSpotId, ready, spots, visibleSpotIds]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -248,12 +297,12 @@ const MapboxStreetsMap = ({
       return;
     }
 
-    const routeTargets = routeStops.length > 0 ? routeStops : routeOpen && nextStop ? [nextStop] : [];
+    const routeTargets = routeOpen ? (routeStops.length > 0 ? routeStops : nextStop ? [nextStop] : []) : [];
     const origin = currentPosition?.lngLat ?? mapConfig.center;
     const coordinates = [origin, ...routeTargets.map((spot) => spot.lngLat)];
     const abortController = new AbortController();
 
-    if (coordinates.length < 2 || !accessToken) {
+    if (!routeOpen || coordinates.length < 2 || !accessToken) {
       setRouteCoordinates([]);
       onRouteSummaryChange?.(null);
       return () => abortController.abort();

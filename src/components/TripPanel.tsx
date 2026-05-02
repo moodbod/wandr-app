@@ -12,6 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { SpotImage } from "@/components/SpotImage";
 import type { Spot } from "@/data/destinations";
 import {
   getCurrentStop,
@@ -280,12 +281,15 @@ const TripPanel = ({
                       ].join(" ")}
                     >
                       <div className="flex gap-3">
-                        <img
-                          src={spot.image}
-                          alt={spot.name}
-                          className="size-14 shrink-0 rounded-xl object-cover"
-                          loading="lazy"
-                        />
+                        <div className="relative size-14 shrink-0 overflow-hidden rounded-xl">
+                          <SpotImage
+                            src={spot.image}
+                            alt={spot.name}
+                            className="object-cover"
+                            sizes="3.5rem"
+                            fill
+                          />
+                        </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">

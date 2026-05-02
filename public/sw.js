@@ -49,7 +49,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
+  if (
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/_next/image") ||
+    url.pathname.startsWith("/icons/") ||
+    url.pathname === "/placeholder.svg"
+  ) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) {

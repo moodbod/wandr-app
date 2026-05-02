@@ -110,7 +110,7 @@ describe("trips.resumeActive", () => {
     expect(result?.trip._id).toBe(recentTripId);
   });
 
-  it("ignores planning and completed trips", async () => {
+  it("returns planning trips but ignores completed trips", async () => {
     const t = testBackend();
     const { userId, authed } = await createUser(t);
     await createTrip(t, {
@@ -128,7 +128,9 @@ describe("trips.resumeActive", () => {
       spotId: "jetty-1905",
     });
 
-    await expect(authed.query(api.trips.resumeActive, {})).resolves.toBeNull();
+    const result = await authed.query(api.trips.resumeActive, {});
+    expect(result?.trip.status).toBe("planning");
+    expect(result?.trip.destinationId).toBe("windhoek");
   });
 
   it("does not return another user's preferred trip", async () => {

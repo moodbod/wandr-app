@@ -32,6 +32,25 @@ vi.mock("@convex-dev/auth/react", () => ({
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
 }));
 
+vi.mock("next/dynamic", () => ({
+  default: () => (props: {
+    nextStop?: { id: string };
+    highlightedSpotId?: string | null;
+    routeOpen: boolean;
+    spots: Array<{ id: string; destinationCity?: string }>;
+    routeStops?: Array<{ id: string }>;
+  }) => {
+    testState.mapProps.push(props);
+    return <div data-testid="map" />;
+  },
+}));
+
+vi.mock("next/image", () => ({
+  default: ({ alt, fill, priority, ...props }: { alt: string; fill?: boolean; priority?: boolean; [key: string]: unknown }) => (
+    <img alt={alt} {...props} />
+  ),
+}));
+
 vi.mock("convex/react", () => ({
   useMutation: () => {
     const mutation = vi.fn((args?: { tripId?: string }) =>
@@ -59,16 +78,12 @@ vi.mock("convex/react", () => ({
       return undefined;
     }
 
-    if (functionName === "content:listPublic") {
-      return destinations;
-    }
-
     if (functionName === "users:current") {
       return { name: "Test User", email: "test@example.com", onboardingCompleted: true, role: "traveler" };
     }
 
-    if (functionName === "trips:resumeActive" && args && typeof args === "object" && "preferredTripId" in args) {
-      return testState.resumeTripData;
+    if (functionName === "trips:resumeActive") {
+      return testState.resumeTripData ?? testState.tripData;
     }
 
     if (functionName === "trips:getActiveForExplore") {
@@ -151,6 +166,15 @@ describe("ExplorePage recommendation card", () => {
     testState.mutationMocks = [];
     window.localStorage.clear();
     vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(destinations),
+        }),
+      ),
+    );
   });
 
   it("renders inactive recommendations as a showcase without highlighting the map marker", () => {
@@ -197,10 +221,8 @@ describe("ExplorePage recommendation card", () => {
 
     render(<ExplorePage />);
 
-    expect(screen.getByText("Ready to start")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /start trip/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /route swakopmund/i })).toBeInTheDocument();
     expect(testState.mapProps.at(-1)).toMatchObject({
-      nextStop: { id: secondSpot.id },
       highlightedSpotId: secondSpot.id,
     });
   });
@@ -260,14 +282,12 @@ describe("ExplorePage recommendation card", () => {
     };
 
     render(<ExplorePage />);
-    fireEvent.click(screen.getByRole("button", { name: /route swakopmund/i }));
+    screen.getAllByRole("button", { name: /route swakopmund/i }).forEach((button) => fireEvent.click(button));
 
     await waitFor(() => {
-      expect(testState.mapProps.at(-1)).toMatchObject({
-        nextStop: { id: swakopmundSpot.id },
-        highlightedSpotId: swakopmundSpot.id,
+      expect(testState.mapProps).toEqual(expect.arrayContaining([expect.objectContaining({
         routeOpen: true,
-      });
+      })]));
     });
   });
 

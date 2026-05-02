@@ -175,11 +175,7 @@ export const resumeActive = query({
       }
     }
 
-    const trip = await ctx.db
-      .query("trips")
-      .withIndex("by_userId_and_status_and_updatedAt", (q) => q.eq("userId", userId).eq("status", "active"))
-      .order("desc")
-      .first();
+    const trip = await getOpenExploreTrip(ctx, userId);
 
     if (!trip) {
       return null;

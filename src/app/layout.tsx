@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
 import type { ReactNode } from "react";
-import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 import { PWARegistrar } from "@/components/PWARegistrar";
 import { Providers } from "./providers";
