@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useCallback, useState } from "react";
 import Image from "next/image";
 
 type SpotImageProps = {
@@ -11,6 +13,8 @@ type SpotImageProps = {
   height?: number;
   priority?: boolean;
 };
+
+const loadedImageSrcs = new Set<string>();
 
 function canUseNextImage(src: string) {
   if (src.startsWith("/") || src.startsWith("data:")) {
@@ -36,6 +40,12 @@ export function SpotImage({
   priority = false,
 }: SpotImageProps) {
   const imageSrc = typeof src === "string" && src.length > 0 ? src : "/placeholder.svg";
+  const [isLoaded, setIsLoaded] = useState(() => loadedImageSrcs.has(imageSrc));
+  const markLoaded = useCallback(() => {
+    loadedImageSrcs.add(imageSrc);
+    setIsLoaded(true);
+  }, [imageSrc]);
+  const eagerFromCache = priority || isLoaded;
 
   if (!canUseNextImage(imageSrc)) {
     return (
@@ -43,8 +53,9 @@ export function SpotImage({
         src={imageSrc}
         alt={alt}
         className={className}
-        loading={priority ? "eager" : "lazy"}
+        loading={eagerFromCache ? "eager" : "lazy"}
         decoding="async"
+        onLoad={markLoaded}
       />
     );
   }
@@ -58,6 +69,8 @@ export function SpotImage({
         sizes={sizes}
         fill
         priority={priority}
+        loading={priority ? undefined : eagerFromCache ? "eager" : "lazy"}
+        onLoad={markLoaded}
       />
     );
   }
@@ -69,8 +82,10 @@ export function SpotImage({
       className={className}
       sizes={sizes}
       width={width ?? 112}
-      height={height ?? 112}
-      priority={priority}
-    />
+    height={height ?? 112}
+    priority={priority}
+    loading={priority ? undefined : eagerFromCache ? "eager" : "lazy"}
+    onLoad={markLoaded}
+  />
   );
 }

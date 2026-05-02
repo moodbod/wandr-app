@@ -61,6 +61,7 @@ const namibiaMap = {
   label: "Namibia",
 };
 const fallbackFirstSpotId = fallbackDestinations[0]?.spots[0]?.id ?? null;
+const preloadedSpotImages = new Set<string>();
 
 function MapLoadingState() {
   return (
@@ -68,6 +69,17 @@ function MapLoadingState() {
       Loading map...
     </div>
   );
+}
+
+function preloadSpotImage(src?: string) {
+  if (typeof window === "undefined" || !src || preloadedSpotImages.has(src)) {
+    return;
+  }
+
+  preloadedSpotImages.add(src);
+  const image = new window.Image();
+  image.decoding = "async";
+  image.src = src;
 }
 
 function isTripData(value: unknown): value is PersistedTripData {
@@ -178,6 +190,10 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
 
     return () => abortController.abort();
   }, []);
+
+  useEffect(() => {
+    allSpots.forEach((spot) => preloadSpotImage(spot.image));
+  }, [allSpots]);
 
   const visibleSpots = useMemo(
     () => allSpots.filter((s) => activeCat === "all" || activeCat === "routes" || s.category === activeCat),

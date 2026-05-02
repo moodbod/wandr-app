@@ -44,6 +44,23 @@ type MarkerEntry = {
   marker: Marker;
   element: HTMLButtonElement;
 };
+type PersistentMapState = {
+  host: HTMLDivElement | null;
+  map: MapboxMap | null;
+  geolocateControl: GeolocateControl | null;
+  markers: Map<string, MarkerEntry>;
+  ready: boolean;
+  onOpenSpot: ((spotId: string) => void) | null;
+};
+
+const persistentMapState: PersistentMapState = {
+  host: null,
+  map: null,
+  geolocateControl: null,
+  markers: new Map(),
+  ready: false,
+  onOpenSpot: null,
+};
 
 const categoryInitials: Record<Spot["category"], string> = {
   eat: "E",
@@ -116,23 +133,49 @@ const MapboxStreetsMap = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
   const geolocateControlRef = useRef<GeolocateControl | null>(null);
-  const markersRef = useRef<Map<string, MarkerEntry>>(new Map());
+  const markersRef = useRef<Map<string, MarkerEntry>>(persistentMapState.markers);
   const hasTriggeredGeolocationRef = useRef(false);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(() => persistentMapState.ready);
   const [currentPosition, setCurrentPosition] = useState<CurrentPosition | null>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<LngLat[]>([]);
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
   useEffect(() => {
-    if (!containerRef.current || !accessToken || mapRef.current) {
+    persistentMapState.onOpenSpot = onOpenSpot;
+  }, [onOpenSpot]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+
+    if (!container || !accessToken) {
       return;
     }
 
     mapboxgl.accessToken = accessToken;
-    const markers = markersRef.current;
+
+    if (!persistentMapState.host) {
+      persistentMapState.host = document.createElement("div");
+      persistentMapState.host.className = "absolute inset-0 min-h-dvh w-full";
+    }
+
+    const host = persistentMapState.host;
+    container.append(host);
+
+    if (persistentMapState.map) {
+      mapRef.current = persistentMapState.map;
+      geolocateControlRef.current = persistentMapState.geolocateControl;
+      setReady(persistentMapState.ready || persistentMapState.map.loaded());
+      requestAnimationFrame(() => persistentMapState.map?.resize());
+
+      return () => {
+        host.remove();
+        mapRef.current = null;
+        geolocateControlRef.current = null;
+      };
+    }
 
     const map = new mapboxgl.Map({
-      container: containerRef.current,
+      container: host,
       style: "mapbox://styles/mapbox/streets-v12",
       center: mapConfig.center,
       zoom: mapConfig.zoom,
@@ -165,19 +208,20 @@ const MapboxStreetsMap = ({
     map.addControl(geolocateControl, "bottom-right");
     map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-left");
     geolocateControlRef.current = geolocateControl;
+    persistentMapState.geolocateControl = geolocateControl;
     map.on("load", () => {
+      persistentMapState.ready = true;
       setReady(true);
       map.resize();
       requestAnimationFrame(() => map.resize());
     });
     mapRef.current = map;
+    persistentMapState.map = map;
     requestAnimationFrame(() => map.resize());
 
     return () => {
+      host.remove();
       geolocateControlRef.current = null;
-      markers.forEach(({ marker }) => marker.remove());
-      markers.clear();
-      map.remove();
       mapRef.current = null;
     };
   }, [accessToken, mapConfig.center, mapConfig.zoom]);
@@ -273,7 +317,7 @@ const MapboxStreetsMap = ({
       button.type = "button";
       applyWandrMarkerClasses(button, spot, spot.id === highlightedSpotId);
       button.ariaLabel = `Open details for ${spot.name}`;
-      button.addEventListener("click", () => onOpenSpot(spot.id));
+      button.addEventListener("click", () => persistentMapState.onOpenSpot?.(spot.id));
 
       const visual = document.createElement("span");
       visual.className = "wandr-photo-marker__visual";

@@ -1,5 +1,19 @@
-const CACHE_NAME = "wandr-pwa-v2";
+const CACHE_NAME = "wandr-pwa-v3";
 const APP_SHELL = ["/offline.html", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
+
+function cacheResponse(request, response) {
+  if (!response || !response.ok) {
+    return response;
+  }
+
+  const responseClone = response.clone();
+  caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+  return response;
+}
+
+function fetchAndCache(request) {
+  return fetch(request).then((response) => cacheResponse(request, response));
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -56,13 +70,14 @@ self.addEventListener("fetch", (event) => {
     url.pathname === "/placeholder.svg"
   ) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
-          return response;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || Response.error())),
+      caches.match(request).then((cached) => {
+        if (cached) {
+          event.waitUntil(fetchAndCache(request).catch(() => undefined));
+          return cached;
+        }
+
+        return fetchAndCache(request).catch(() => Response.error());
+      }),
     );
   }
 });
