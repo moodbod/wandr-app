@@ -582,7 +582,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   }
 
   return (
-    <main className="fixed inset-x-0 bottom-0 top-[calc(env(safe-area-inset-top)*-1)] overflow-hidden bg-background text-foreground">
+    <main className="fixed inset-x-0 bottom-0 top-[calc(0px_-_env(safe-area-inset-top))] overflow-hidden bg-background text-foreground">
       {/* Map */}
       <div className={["absolute inset-0", showDesktopTripPanel ? "lg:left-96" : ""].join(" ")}>
         <MapboxStreetsMap
