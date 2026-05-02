@@ -2,15 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import mapboxgl, {
+  LngLatBounds,
   type GeolocateControl,
   type GeoJSONSource,
   type Map as MapboxMap,
   type Marker,
 } from "mapbox-gl";
-import type { Destination, Spot } from "@/data/destinations";
+import type { Spot } from "@/data/destinations";
 
 type Props = {
-  destination: Destination;
+  mapConfig: {
+    center: [number, number];
+    zoom: number;
+    label: string;
+  };
   spots: Spot[];
   nextStop?: Spot;
   highlightedSpotId?: string | null;
@@ -58,7 +63,7 @@ function markerTone(spot: Spot) {
 }
 
 const MapboxStreetsMap = ({
-  destination,
+  mapConfig,
   spots,
   nextStop,
   highlightedSpotId,
@@ -87,8 +92,8 @@ const MapboxStreetsMap = ({
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: "mapbox://styles/mapbox/streets-v12",
-      center: destination.map.center,
-      zoom: destination.map.zoom,
+      center: mapConfig.center,
+      zoom: mapConfig.zoom,
       attributionControl: false,
       pitchWithRotate: false,
     });
@@ -131,7 +136,7 @@ const MapboxStreetsMap = ({
       map.remove();
       mapRef.current = null;
     };
-  }, [accessToken, destination.map.center, destination.map.zoom]);
+  }, [accessToken, mapConfig.center, mapConfig.zoom]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -144,12 +149,28 @@ const MapboxStreetsMap = ({
     }
 
     map.flyTo({
-      center: destination.map.center,
-      zoom: destination.map.zoom,
+      center: mapConfig.center,
+      zoom: mapConfig.zoom,
       duration: 700,
       essential: true,
     });
-  }, [currentPosition, destination, ready]);
+  }, [currentPosition, mapConfig, ready]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || currentPosition || spots.length === 0) {
+      return;
+    }
+
+    const bounds = new LngLatBounds();
+    spots.forEach((spot) => bounds.extend(spot.lngLat));
+    map.fitBounds(bounds, {
+      padding: { top: 140, right: 80, bottom: 260, left: 80 },
+      maxZoom: 12,
+      duration: 700,
+      essential: true,
+    });
+  }, [currentPosition, ready, spots]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -212,7 +233,7 @@ const MapboxStreetsMap = ({
     }
 
     const routeTargets = routeStops.length > 0 ? routeStops : routeOpen && nextStop ? [nextStop] : [];
-    const origin = currentPosition?.lngLat ?? destination.map.center;
+    const origin = currentPosition?.lngLat ?? mapConfig.center;
     const coordinates = [origin, ...routeTargets.map((spot) => spot.lngLat)];
     const abortController = new AbortController();
 
@@ -268,7 +289,7 @@ const MapboxStreetsMap = ({
   }, [
     accessToken,
     currentPosition?.lngLat,
-    destination.map.center,
+    mapConfig.center,
     nextStop,
     ready,
     routeMode,
@@ -353,7 +374,7 @@ const MapboxStreetsMap = ({
     );
   }
 
-  return <div ref={containerRef} className="absolute inset-0" aria-label={`Map of ${destination.city}`} />;
+  return <div ref={containerRef} className="absolute inset-0" aria-label={`Map of ${mapConfig.label}`} />;
 };
 
 export default MapboxStreetsMap;

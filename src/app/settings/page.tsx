@@ -13,13 +13,14 @@ import {
   LogOut,
   MapPin,
   Route,
+  ShieldCheck,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { api } from "../../../convex/_generated/api";
 import { AuthDialog } from "@/components/AuthDialog";
-import { destinations } from "@/data/destinations";
+import type { Destination } from "@/data/destinations";
 
 const preferenceOptions = [
   { id: "eat", label: "Food" },
@@ -48,10 +49,23 @@ function formatUpdatedAt(updatedAt: number) {
   }).format(new Date(updatedAt));
 }
 
+function isDestinationList(value: unknown): value is Destination[] {
+  return Array.isArray(value) && value.every((destination) => {
+    if (!destination || typeof destination !== "object") {
+      return false;
+    }
+
+    const candidate = destination as Partial<Destination>;
+    return typeof candidate.id === "string" && Array.isArray(candidate.spots);
+  });
+}
+
 export default function SettingsPage() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const { signOut } = useAuthActions();
   const currentUser = useQuery(api.users.current, isAuthenticated ? {} : "skip");
+  const catalogData = useQuery(api.content.listPublic, {});
+  const destinations = useMemo(() => (isDestinationList(catalogData) ? catalogData : []), [catalogData]);
   const tripPlans = useQuery(api.trips.listForCurrentUser, isAuthenticated ? {} : "skip");
   const updateSettings = useMutation(api.users.updateSettings);
   const [authOpen, setAuthOpen] = useState(false);
@@ -74,7 +88,7 @@ export default function SettingsPage() {
 
   const destinationById = useMemo(
     () => new Map(destinations.map((destination) => [destination.id, destination])),
-    [],
+    [destinations],
   );
 
   const togglePreference = (id: string) => {
@@ -270,9 +284,18 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between gap-4 py-3">
                   <span className="text-muted-foreground">Access</span>
-                  <span className="font-medium">Wandr account</span>
+                  <span className="font-medium">{currentUser.role === "admin" ? "Admin" : "Traveler"}</span>
                 </div>
               </div>
+              {currentUser.role === "admin" ? (
+                <Link
+                  href="/admin"
+                  className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground px-4 text-sm font-semibold text-background transition-colors hover:bg-foreground/90"
+                >
+                  <ShieldCheck className="size-4" />
+                  Admin
+                </Link>
+              ) : null}
               <button
                 type="button"
                 onClick={() => void signOut()}

@@ -5,8 +5,14 @@ import TripPanel, { type TripPanelData } from "@/components/TripPanel";
 import { destinations } from "@/data/destinations";
 
 const destination = destinations[0];
-const firstSpot = destination.spots[0]!;
-const secondSpot = destination.spots[1]!;
+const spots = destination.spots.map((spot) => ({
+  ...spot,
+  destinationId: destination.id,
+  destinationCity: destination.city,
+  destinationCountry: destination.country,
+}));
+const firstSpot = spots[0]!;
+const secondSpot = spots[1]!;
 
 function renderTripPanel(tripData: TripPanelData | undefined, selectedSpot = firstSpot) {
   const handlers = {
@@ -20,7 +26,7 @@ function renderTripPanel(tripData: TripPanelData | undefined, selectedSpot = fir
     onRouteModeChange: vi.fn(),
   };
 
-  render(<TripPanel destination={destination} tripData={tripData} selectedSpot={selectedSpot} {...handlers} />);
+  render(<TripPanel title="Your trip" spots={spots} tripData={tripData} selectedSpot={selectedSpot} {...handlers} />);
 
   return handlers;
 }

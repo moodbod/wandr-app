@@ -13,7 +13,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           throw new ConvexError("Enter a valid email address.");
         }
 
-        return { email };
+        return params.flow === "signUp" ? { email, role: "traveler" } : { email };
       },
       validatePasswordRequirements(password) {
         if (password.length < 8) {

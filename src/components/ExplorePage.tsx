@@ -3,26 +3,36 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { Search, Coffee, Eye, Sparkles, Route as RouteIcon, Navigation, SlidersHorizontal, ChevronDown, ListChecks } from "lucide-react";
+import { Search, Coffee, Eye, Gem, Map, Route as RouteIcon, Navigation, SlidersHorizontal, ChevronDown, ListChecks } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { AuthDialog } from "@/components/AuthDialog";
 import { AuthStatus } from "@/components/AuthStatus";
-import DestinationPicker from "@/components/DestinationPicker";
 import MapboxStreetsMap, { type RouteSummary } from "@/components/MapboxStreetsMap";
 import { OnboardingDialog } from "@/components/OnboardingDialog";
 import RoutePanel from "@/components/RoutePanel";
 import SpotModal from "@/components/SpotModal";
 import TripPanel from "@/components/TripPanel";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
-import { destinations, type Spot } from "@/data/destinations";
+import type { Destination, Spot } from "@/data/destinations";
+import {
+  applyOfflineAction,
+  createOfflineAction,
+  readActiveTripSnapshot,
+  readOfflineTripQueue,
+  saveActiveTripSnapshot,
+  saveOfflineTripQueue,
+  type ActiveTripSnapshot,
+  type OfflineTripAction,
+  type PersistedTripData,
+} from "@/lib/activeTripPersistence";
 import { getCurrentStop, getRouteStopIds, getTripProgress, hasTripSpot, orderedTripStops } from "@/lib/tripPlanner";
 
 const categories = [
-  { id: "all", label: "All", mobileLabel: "All", icon: Sparkles },
+  { id: "all", label: "All", mobileLabel: "All", icon: Map },
   { id: "eat", label: "Eat", mobileLabel: "Eat", icon: Coffee },
   { id: "see", label: "See", mobileLabel: "See", icon: Eye },
-  { id: "gems", label: "Hidden gems", mobileLabel: "Gems", icon: Sparkles },
+  { id: "gems", label: "Hidden gems", mobileLabel: "Gems", icon: Gem },
   { id: "routes", label: "Routes", mobileLabel: "Routes", icon: RouteIcon },
 ] as const;
 
@@ -32,18 +42,79 @@ type ExplorePageProps = {
   initialDestinationId?: string;
 };
 
-const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
+type ExploreSpot = Spot & {
+  destinationId: string;
+  destinationCity: string;
+  destinationCountry: string;
+};
+
+const namibiaMap = {
+  center: [17.0832, -22.5597] as [number, number],
+  zoom: 5.2,
+  label: "Namibia",
+};
+
+function isTripData(value: unknown): value is PersistedTripData {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "trip" in value &&
+      "stops" in value &&
+      (value as PersistedTripData).trip &&
+      Array.isArray((value as PersistedTripData).stops),
+  );
+}
+
+function isDestinationList(value: unknown): value is Destination[] {
+  return Array.isArray(value) && value.every((destination) => {
+    if (!destination || typeof destination !== "object") {
+      return false;
+    }
+
+    const candidate = destination as Partial<Destination>;
+    return typeof candidate.id === "string" && Array.isArray(candidate.spots);
+  });
+}
+
+function snapshotIdentity(snapshot: ActiveTripSnapshot | null) {
+  if (!snapshot) {
+    return "";
+  }
+
+  return JSON.stringify({
+    destinationId: snapshot.destinationId,
+    routeOpen: snapshot.routeOpen,
+    routedSpotId: snapshot.routedSpotId,
+    trip: snapshot.trip,
+    stops: snapshot.stops,
+  });
+}
+
+const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePageProps) => {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+  const catalogData = useQuery(api.content.listPublic, {});
+  const destinations = useMemo(() => (isDestinationList(catalogData) ? catalogData : []), [catalogData]);
+  const allSpots = useMemo<ExploreSpot[]>(
+    () =>
+      destinations.flatMap((destination) =>
+        destination.spots.map((spot) => ({
+          ...spot,
+          destinationId: destination.id,
+          destinationCity: destination.city,
+          destinationCountry: destination.country,
+        })),
+      ),
+    [destinations],
+  );
   const currentUser = useQuery(api.users.current, isAuthenticated ? {} : "skip");
-  const requestedDestinationId = initialDestinationId ?? null;
-  const initialDestination =
-    destinations.find((candidate) => candidate.id === requestedDestinationId) ?? destinations[0];
-  const [destination, setDestination] = useState(initialDestination);
+  const [localSnapshot, setLocalSnapshot] = useState<ActiveTripSnapshot | null>(() => readActiveTripSnapshot());
+  const [optimisticTripData, setOptimisticTripData] = useState<PersistedTripData | null>(null);
+  const [offlineQueue, setOfflineQueue] = useState<OfflineTripAction[]>(() => readOfflineTripQueue());
   const [activeCat, setActiveCat] = useState<(typeof categories)[number]["id"]>("all");
-  const [fallbackNextStopId, setFallbackNextStopId] = useState<string | null>(destination.spots[0]?.id ?? null);
+  const [fallbackNextStopId, setFallbackNextStopId] = useState<string | null>(localSnapshot?.routedSpotId ?? null);
   const [openSpotId, setOpenSpotId] = useState<string | null>(null);
   const [fallbackRouteMode, setFallbackRouteMode] = useState<"walk" | "drive">("walk");
-  const [routeOpen, setRouteOpen] = useState(false);
+  const [routeOpen, setRouteOpen] = useState(() => Boolean(localSnapshot?.routeOpen));
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
   const [tripSheetOpen, setTripSheetOpen] = useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -51,80 +122,152 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const pendingActionRef = useRef<GatedAction | null>(null);
   const tripData = useQuery(
-    api.trips.getActiveForDestination,
-    isAuthenticated && currentUser?.onboardingCompleted ? { destinationId: destination.id } : "skip"
+    api.trips.getActiveForExplore,
+    isAuthenticated && currentUser?.onboardingCompleted ? {} : "skip"
   );
   const addTripStop = useMutation(api.trips.addStop);
   const removeTripStop = useMutation(api.trips.removeStop);
-  const moveTripStop = useMutation(api.trips.moveStop);
   const setNextTripStop = useMutation(api.trips.setNextStop);
   const startTrip = useMutation(api.trips.startTrip);
-  const markTripStopDone = useMutation(api.trips.markStopDone);
-  const skipTripStop = useMutation(api.trips.skipStop);
-  const setTripRouteMode = useMutation(api.trips.setRouteMode);
+  const syncOfflineAction = useMutation(api.trips.syncOfflineAction);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const syncingRef = useRef(false);
 
   const visibleSpots = useMemo(
-    () => destination.spots.filter((s) => activeCat === "all" || activeCat === "routes" || s.category === activeCat),
-    [destination, activeCat]
+    () => allSpots.filter((s) => activeCat === "all" || activeCat === "routes" || s.category === activeCat),
+    [allSpots, activeCat]
   );
 
-  const tripStops = useMemo(() => orderedTripStops(tripData?.stops ?? []), [tripData?.stops]);
-  const tripPanelData = isAuthenticated && currentUser?.onboardingCompleted ? tripData : null;
-  const currentTripStop = tripData?.trip ? getCurrentStop(tripStops, tripData.trip.status) : null;
-  const fallbackNextStop = destination.spots.find((s) => s.id === fallbackNextStopId) ?? destination.spots[0];
-  const nextStop: Spot | undefined =
-    (currentTripStop ? destination.spots.find((s) => s.id === currentTripStop.spotId) : null) ?? fallbackNextStop;
+  const resumeTripData = useQuery(
+    api.trips.resumeActive,
+    isAuthenticated && currentUser?.onboardingCompleted
+      ? { preferredTripId: localSnapshot?.trip.status === "active" ? localSnapshot.trip._id as Id<"trips"> : undefined }
+      : "skip"
+  );
+  const effectiveTripData =
+    optimisticTripData ??
+    (isTripData(resumeTripData) ? resumeTripData : null) ??
+    (isTripData(tripData) ? tripData : null) ??
+    localSnapshot;
+  const tripStops = useMemo(() => orderedTripStops(effectiveTripData?.stops ?? []), [effectiveTripData?.stops]);
+  const canUseLocalOfflineTrip = !isOnline && localSnapshot?.trip.status === "active";
+  const tripPanelData = (isAuthenticated && currentUser?.onboardingCompleted) || canUseLocalOfflineTrip ? effectiveTripData : null;
+  const currentTripStop = effectiveTripData?.trip ? getCurrentStop(tripStops, effectiveTripData.trip.status) : null;
+  const fallbackNextStop = allSpots.find((s) => s.id === fallbackNextStopId) ?? allSpots[0];
+  const routedFallbackStop = routeOpen ? fallbackNextStop : null;
+  const nextStop: ExploreSpot | undefined =
+    routedFallbackStop ?? (currentTripStop ? allSpots.find((s) => s.id === currentTripStop.spotId) : null) ?? fallbackNextStop;
   const routedSpotId = routeOpen ? nextStop?.id ?? null : null;
-  const openSpot: Spot | null =
-    destination.spots.find((s) => s.id === openSpotId) ?? null;
-  const routeMode = tripData?.trip.routeMode ?? fallbackRouteMode;
+  const openSpot: ExploreSpot | null =
+    allSpots.find((s) => s.id === openSpotId) ?? null;
+  const routeMode = effectiveTripData?.trip.routeMode ?? fallbackRouteMode;
   const activeCategory = categories.find((category) => category.id === activeCat) ?? categories[0];
   const tripProgress = getTripProgress(tripStops);
   const showDesktopTripPanel = tripProgress.total > 0;
-  const isActiveTrip = tripData?.trip.status === "active";
-  const isPlanningTrip = tripData?.trip.status === "planning" && tripProgress.total > 0;
+  const isActiveTrip = effectiveTripData?.trip.status === "active";
+  const isPlanningTrip = effectiveTripData?.trip.status === "planning" && tripProgress.total > 0;
   const isInactiveRecommendation = !isActiveTrip && !isPlanningTrip;
   const stopPillLabel = isActiveTrip ? "Next" : isPlanningTrip ? "First stop" : "Suggested";
   const stopCardLabel = isActiveTrip ? nextStop?.tag : isPlanningTrip ? "Ready to start" : nextStop?.tag;
   const stopActionLabel = isActiveTrip ? "Route me there" : isPlanningTrip ? "Start trip" : "Route me there";
   const highlightedSpotId = nextStop && (routeOpen || isActiveTrip || isPlanningTrip) ? nextStop.id : null;
   const routeStopsForMap = useMemo(() => {
-    const stopIds = getRouteStopIds(tripStops, tripData?.trip.status);
+    const stopIds = getRouteStopIds(tripStops, effectiveTripData?.trip.status);
     return stopIds
-      .map((spotId) => destination.spots.find((spot) => spot.id === spotId))
-      .filter((spot): spot is Spot => Boolean(spot));
-  }, [destination.spots, tripData?.trip.status, tripStops]);
+      .map((spotId) => allSpots.find((spot) => spot.id === spotId))
+      .filter((spot): spot is NonNullable<typeof spot> => Boolean(spot));
+  }, [allSpots, effectiveTripData?.trip.status, tripStops]);
 
   useEffect(() => {
-    if (!requestedDestinationId || requestedDestinationId === destination.id) {
+    if (fallbackNextStopId || allSpots.length === 0) {
       return;
     }
 
-    const nextDestination = destinations.find((candidate) => candidate.id === requestedDestinationId);
+    setFallbackNextStopId(allSpots[0].id);
+  }, [allSpots, fallbackNextStopId]);
 
-    if (!nextDestination) {
+  useEffect(() => {
+    if (!isActiveTrip || !currentTripStop || currentTripStop.spotId === fallbackNextStopId) {
       return;
     }
 
-    setDestination(nextDestination);
-    setFallbackNextStopId(nextDestination.spots[0]?.id ?? null);
-    setOpenSpotId(null);
-    setRouteOpen(false);
-    setRouteSummary(null);
-    setTripSheetOpen(false);
-  }, [destination.id, requestedDestinationId]);
+    setFallbackNextStopId(currentTripStop.spotId);
+  }, [currentTripStop, fallbackNextStopId, isActiveTrip]);
 
-  const handleDestinationChange = (d: typeof destinations[number]) => {
-    setDestination(d);
-    setFallbackNextStopId(d.spots[0]?.id ?? null);
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    saveOfflineTripQueue(offlineQueue);
+  }, [offlineQueue]);
+
+  useEffect(() => {
+    if (!resumeTripData?.trip) {
+      return;
+    }
+
+    const resumedSpotId = getCurrentStop(resumeTripData.stops, resumeTripData.trip.status)?.spotId;
+
+    if (!resumedSpotId || resumedSpotId === fallbackNextStopId) {
+      return;
+    }
+
+    setFallbackNextStopId(resumedSpotId);
     setOpenSpotId(null);
-    setRouteOpen(false);
+    setRouteOpen(true);
     setRouteSummary(null);
     setTripSheetOpen(false);
-  };
+  }, [fallbackNextStopId, resumeTripData]);
+
+  useEffect(() => {
+    if (!effectiveTripData?.trip || effectiveTripData.trip.status !== "active") {
+      return;
+    }
+
+    const snapshot: ActiveTripSnapshot = {
+      trip: effectiveTripData.trip,
+      stops: effectiveTripData.stops,
+      destinationId: effectiveTripData.trip.destinationId ?? "namibia",
+      routeOpen,
+      routedSpotId,
+      lastViewedAt: Date.now(),
+    };
+
+    setLocalSnapshot((current) => {
+      if (snapshotIdentity(current) === snapshotIdentity(snapshot)) {
+        return current;
+      }
+
+      saveActiveTripSnapshot(snapshot);
+      return snapshot;
+    });
+  }, [effectiveTripData, routeOpen, routedSpotId]);
+
+  useEffect(() => {
+    if (!isOnline || offlineQueue.length > 0 || (!resumeTripData && !tripData)) {
+      return;
+    }
+
+    setOptimisticTripData(null);
+  }, [isOnline, offlineQueue.length, resumeTripData, tripData]);
 
   const runGatedAction = useCallback(
     (action: GatedAction) => {
+      if (!isOnline && localSnapshot?.trip.status === "active") {
+        action();
+        return;
+      }
+
       if (authLoading) {
         pendingActionRef.current = action;
         return;
@@ -149,7 +292,7 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
 
       action();
     },
-    [authLoading, currentUser, isAuthenticated]
+    [authLoading, currentUser, isAuthenticated, isOnline, localSnapshot?.trip.status]
   );
 
   useEffect(() => {
@@ -181,18 +324,154 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
     setOnboardingOpen(false);
   };
 
+  const buildCurrentSnapshot = useCallback((): ActiveTripSnapshot | null => {
+    if (!effectiveTripData?.trip) {
+      return null;
+    }
+
+    return {
+      trip: effectiveTripData.trip,
+      stops: effectiveTripData.stops,
+      destinationId: effectiveTripData.trip.destinationId ?? "namibia",
+      routeOpen,
+      routedSpotId,
+      lastViewedAt: Date.now(),
+    };
+  }, [effectiveTripData, routeOpen, routedSpotId]);
+
+  const persistSnapshot = useCallback((snapshot: ActiveTripSnapshot) => {
+    setLocalSnapshot(snapshot);
+    setOptimisticTripData({ trip: snapshot.trip, stops: snapshot.stops });
+    saveActiveTripSnapshot(snapshot);
+  }, []);
+
+  const queueOfflineAction = useCallback(
+    (action: OfflineTripAction) => {
+      const snapshot = buildCurrentSnapshot();
+
+      if (!snapshot) {
+        return;
+      }
+
+      persistSnapshot(applyOfflineAction(snapshot, action));
+      setOfflineQueue((current) => [...current, action]);
+    },
+    [buildCurrentSnapshot, persistSnapshot],
+  );
+
+  const runOfflineCapableTripAction = useCallback(
+    (action: OfflineTripAction) => {
+      const syncAction =
+        action.type === "markDone"
+          ? { type: "markDone" as const, tripStopId: action.tripStopId as Id<"tripStops"> }
+          : action.type === "skip"
+            ? { type: "skip" as const, tripStopId: action.tripStopId as Id<"tripStops"> }
+            : action.type === "moveStop"
+              ? {
+                  type: "moveStop" as const,
+                  tripStopId: action.tripStopId as Id<"tripStops">,
+                  direction: action.direction,
+                }
+              : { type: "setRouteMode" as const, routeMode: action.routeMode };
+
+      if (!isOnline) {
+        queueOfflineAction(action);
+        return;
+      }
+
+      void syncOfflineAction({ tripId: action.tripId as Id<"trips">, action: syncAction })
+        .then((payload) => {
+          const snapshot: ActiveTripSnapshot = {
+            trip: payload.trip,
+            stops: payload.stops,
+            destinationId: payload.trip.destinationId,
+            routeOpen,
+            routedSpotId,
+            lastViewedAt: Date.now(),
+          };
+          persistSnapshot(snapshot);
+        })
+        .catch(() => queueOfflineAction(action));
+    },
+    [isOnline, persistSnapshot, queueOfflineAction, routeOpen, routedSpotId, syncOfflineAction],
+  );
+
+  useEffect(() => {
+    if (!isOnline || !isAuthenticated || !currentUser?.onboardingCompleted || offlineQueue.length === 0 || syncingRef.current) {
+      return;
+    }
+
+    syncingRef.current = true;
+
+    const syncQueuedActions = async () => {
+      const remaining = [...offlineQueue];
+
+      while (remaining.length > 0) {
+        const action = remaining[0];
+        const syncAction =
+          action.type === "markDone"
+            ? { type: "markDone" as const, tripStopId: action.tripStopId as Id<"tripStops"> }
+            : action.type === "skip"
+              ? { type: "skip" as const, tripStopId: action.tripStopId as Id<"tripStops"> }
+              : action.type === "moveStop"
+                ? {
+                    type: "moveStop" as const,
+                    tripStopId: action.tripStopId as Id<"tripStops">,
+                    direction: action.direction,
+                  }
+                : { type: "setRouteMode" as const, routeMode: action.routeMode };
+
+        try {
+          const payload = await syncOfflineAction({ tripId: action.tripId as Id<"trips">, action: syncAction });
+          const snapshot: ActiveTripSnapshot = {
+            trip: payload.trip,
+            stops: payload.stops,
+            destinationId: payload.trip.destinationId,
+            routeOpen,
+            routedSpotId,
+            lastViewedAt: Date.now(),
+          };
+          persistSnapshot(snapshot);
+          remaining.shift();
+          setOfflineQueue([...remaining]);
+
+          if (payload.reason === "completed") {
+            remaining.length = 0;
+            setOfflineQueue([]);
+            break;
+          }
+        } catch {
+          break;
+        }
+      }
+
+      syncingRef.current = false;
+    };
+
+    void syncQueuedActions();
+  }, [
+    currentUser?.onboardingCompleted,
+    isAuthenticated,
+    isOnline,
+    offlineQueue,
+    persistSnapshot,
+    routeOpen,
+    routedSpotId,
+    syncOfflineAction,
+  ]);
+
   const handleAddSpotToTrip = useCallback(
-    (spot: Spot) => {
+    (spot: ExploreSpot) => {
       runGatedAction(() => {
-        void addTripStop({ destinationId: destination.id, spotId: spot.id });
+        void addTripStop({ destinationId: spot.destinationId, spotId: spot.id });
         setFallbackNextStopId(spot.id);
       });
     },
-    [addTripStop, destination.id, runGatedAction]
+    [addTripStop, runGatedAction]
   );
 
   const handleRouteSpot = useCallback(
-    (spot: Spot) => {
+    (spot: ExploreSpot) => {
       runGatedAction(() => {
         setFallbackNextStopId(spot.id);
         setRouteOpen(true);
@@ -203,64 +482,111 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
   );
 
   const handleSetNextStop = useCallback(
-    (spot: Spot) => {
+    (spot: ExploreSpot) => {
       runGatedAction(() => {
-        void setNextTripStop({ destinationId: destination.id, spotId: spot.id });
+        void setNextTripStop({ destinationId: spot.destinationId, spotId: spot.id });
         setFallbackNextStopId(spot.id);
         setOpenSpotId(null);
       });
     },
-    [destination.id, runGatedAction, setNextTripStop]
+    [runGatedAction, setNextTripStop]
   );
 
   const handleStartRoute = useCallback(
-    (spot: Spot) => {
+    (spot: ExploreSpot) => {
       runGatedAction(() => {
-        if (tripData?.trip.status === "planning") {
-          void startTrip({ tripId: tripData.trip._id });
+        if (effectiveTripData?.trip.status === "planning") {
+          void startTrip({ tripId: effectiveTripData.trip._id as Id<"trips"> }).then((payload) => {
+            persistSnapshot({
+              trip: payload.trip,
+              stops: payload.stops,
+              destinationId: payload.trip.destinationId,
+              routeOpen: true,
+              routedSpotId: getCurrentStop(payload.stops, payload.trip.status)?.spotId ?? null,
+              lastViewedAt: Date.now(),
+            });
+          });
           setRouteOpen(true);
           return;
         }
 
-        if (tripData?.trip.status === "active") {
+        if (effectiveTripData?.trip.status === "active") {
           setRouteOpen(true);
           return;
         }
 
-        void setNextTripStop({ destinationId: destination.id, spotId: spot.id }).then(({ tripId }) => {
-          void startTrip({ tripId });
+        void setNextTripStop({ destinationId: spot.destinationId, spotId: spot.id }).then(({ tripId }) => {
+          void startTrip({ tripId }).then((payload) => {
+            persistSnapshot({
+              trip: payload.trip,
+              stops: payload.stops,
+              destinationId: payload.trip.destinationId,
+              routeOpen: true,
+              routedSpotId: getCurrentStop(payload.stops, payload.trip.status)?.spotId ?? null,
+              lastViewedAt: Date.now(),
+            });
+          });
           setRouteOpen(true);
         });
       });
     },
-    [destination.id, runGatedAction, setNextTripStop, startTrip, tripData?.trip]
+    [effectiveTripData?.trip, persistSnapshot, runGatedAction, setNextTripStop, startTrip]
   );
 
   const handleSetRouteMode = useCallback(
     (mode: "walk" | "drive") => {
       runGatedAction(() => {
         setRouteSummary(null);
-        if (tripData?.trip) {
-          void setTripRouteMode({ tripId: tripData.trip._id, routeMode: mode });
+        if (effectiveTripData?.trip) {
+          runOfflineCapableTripAction(
+            createOfflineAction({
+              tripId: effectiveTripData.trip._id,
+              type: "setRouteMode",
+              routeMode: mode,
+            }),
+          );
           return;
         }
 
         setFallbackRouteMode(mode);
       });
     },
-    [runGatedAction, setTripRouteMode, tripData?.trip]
+    [effectiveTripData?.trip, runGatedAction, runOfflineCapableTripAction]
   );
 
   const handleRouteSummaryChange = useCallback((summary: RouteSummary | null) => {
     setRouteSummary(summary);
   }, []);
 
+  if (catalogData === undefined) {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-background p-6 text-foreground">
+        <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
+          Loading places...
+        </div>
+      </main>
+    );
+  }
+
+  if (allSpots.length === 0) {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-background p-6 text-foreground">
+        <div className="max-w-sm rounded-lg border border-border bg-card p-5 text-center shadow-sm">
+          <h1 className="text-lg font-semibold">No places yet</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Ask an admin to seed or add the first Wandr destination in Convex.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="relative -mt-[env(safe-area-inset-top)] h-[calc(100dvh+env(safe-area-inset-top))] w-full overflow-hidden bg-background text-foreground">
       {/* Map */}
       <div className={["absolute inset-0", showDesktopTripPanel ? "lg:left-96" : ""].join(" ")}>
         <MapboxStreetsMap
-          destination={destination}
+          mapConfig={namibiaMap}
           spots={visibleSpots}
           nextStop={nextStop}
           highlightedSpotId={highlightedSpotId}
@@ -286,7 +612,7 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
                 type="button"
                 onClick={() => runGatedAction(() => undefined)}
                 className="grid size-10 shrink-0 place-items-center rounded-full border border-white/70 bg-white/95 text-foreground backdrop-blur-xl transition-transform active:scale-95"
-                aria-label={`Search ${destination.city}`}
+                aria-label="Search Namibia"
               >
                 <Search className="size-4" />
               </button>
@@ -358,9 +684,6 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
               Wandr
             </h1>
             <div className="contents lg:col-start-3 lg:flex lg:items-center lg:gap-2">
-              <div className="lg:hidden">
-                <DestinationPicker value={destination} onChange={handleDestinationChange} />
-              </div>
               <AuthStatus
                 userName={currentUser?.name}
                 userEmail={currentUser?.email}
@@ -385,7 +708,7 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
               <Search className="size-4 text-muted-foreground shrink-0" />
               <input
                 type="text"
-                placeholder={`I'm in ${destination.city}. What should I see?`}
+                placeholder="I'm in Namibia. What should I see?"
                 className="min-w-0 w-full bg-transparent py-1.5 text-[16px] placeholder:text-muted-foreground focus:outline-none sm:text-sm"
               />
               <button
@@ -434,7 +757,7 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
                 spot={nextStop}
                 mode={routeMode}
                 summary={routeSummary}
-                isActive={tripData?.trip.status === "active"}
+                isActive={effectiveTripData?.trip.status === "active"}
                 onModeChange={handleSetRouteMode}
                 onClose={() => setRouteOpen(false)}
                 onStart={() => handleStartRoute(nextStop)}
@@ -531,7 +854,7 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
             </div>
           ) : (
             <div className="rounded-t-[2rem] border border-border bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-sm text-muted-foreground shadow-2xl shadow-foreground/15 sm:rounded-2xl sm:pb-4 sm:shadow-sm">
-              No spots in this category yet for {destination.city}.
+              No Namibia spots in this category yet.
             </div>
           )}
         </div>
@@ -540,18 +863,54 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
       {showDesktopTripPanel ? (
         <div className="absolute bottom-0 left-0 top-0 z-30 hidden w-96 animate-in slide-in-from-left-6 duration-300 border-r border-border shadow-xl lg:block">
           <TripPanel
-            destination={destination}
+            title="Your trip"
+            spots={allSpots}
             tripData={tripPanelData}
             selectedSpot={openSpot}
             routedSpotId={routedSpotId}
             onAddSpot={handleAddSpotToTrip}
             onRemoveStop={(tripStopId) => runGatedAction(() => void removeTripStop({ tripStopId: tripStopId as Id<"tripStops"> }))}
-            onMoveStop={(tripStopId, direction) => runGatedAction(() => void moveTripStop({ tripStopId: tripStopId as Id<"tripStops">, direction }))}
+            onMoveStop={(tripStopId, direction) => runGatedAction(() => {
+              if (!effectiveTripData?.trip) {
+                return;
+              }
+
+              runOfflineCapableTripAction(createOfflineAction({
+                tripId: effectiveTripData.trip._id,
+                type: "moveStop",
+                tripStopId,
+                direction,
+              }));
+            })}
             onStartTrip={(tripId) => runGatedAction(() => void startTrip({ tripId: tripId as Id<"trips"> }))}
             onRouteStop={handleRouteSpot}
-            onMarkDone={(tripStopId) => runGatedAction(() => void markTripStopDone({ tripStopId: tripStopId as Id<"tripStops"> }))}
-            onSkipStop={(tripStopId) => runGatedAction(() => void skipTripStop({ tripStopId: tripStopId as Id<"tripStops"> }))}
-            onRouteModeChange={(tripId, mode) => runGatedAction(() => void setTripRouteMode({ tripId: tripId as Id<"trips">, routeMode: mode }))}
+            onMarkDone={(tripStopId) => runGatedAction(() => {
+              if (!effectiveTripData?.trip) {
+                return;
+              }
+
+              runOfflineCapableTripAction(createOfflineAction({
+                tripId: effectiveTripData.trip._id,
+                type: "markDone",
+                tripStopId,
+              }));
+            })}
+            onSkipStop={(tripStopId) => runGatedAction(() => {
+              if (!effectiveTripData?.trip) {
+                return;
+              }
+
+              runOfflineCapableTripAction(createOfflineAction({
+                tripId: effectiveTripData.trip._id,
+                type: "skip",
+                tripStopId,
+              }));
+            })}
+            onRouteModeChange={(tripId, mode) => runGatedAction(() => runOfflineCapableTripAction(createOfflineAction({
+              tripId,
+              type: "setRouteMode",
+              routeMode: mode,
+            })))}
           />
         </div>
       ) : null}
@@ -560,13 +919,25 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
         <DrawerContent className="h-[88dvh] max-h-[88dvh] rounded-t-[1.75rem] border-border bg-card p-0 lg:hidden">
           <DrawerTitle className="sr-only">Your adventure</DrawerTitle>
           <TripPanel
-            destination={destination}
+            title="Your trip"
+            spots={allSpots}
             tripData={tripPanelData}
             selectedSpot={openSpot}
             routedSpotId={routedSpotId}
             onAddSpot={handleAddSpotToTrip}
             onRemoveStop={(tripStopId) => runGatedAction(() => void removeTripStop({ tripStopId: tripStopId as Id<"tripStops"> }))}
-            onMoveStop={(tripStopId, direction) => runGatedAction(() => void moveTripStop({ tripStopId: tripStopId as Id<"tripStops">, direction }))}
+            onMoveStop={(tripStopId, direction) => runGatedAction(() => {
+              if (!effectiveTripData?.trip) {
+                return;
+              }
+
+              runOfflineCapableTripAction(createOfflineAction({
+                tripId: effectiveTripData.trip._id,
+                type: "moveStop",
+                tripStopId,
+                direction,
+              }));
+            })}
             onStartTrip={(tripId) => runGatedAction(() => {
               void startTrip({ tripId: tripId as Id<"trips"> });
               setTripSheetOpen(false);
@@ -575,9 +946,33 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
               handleRouteSpot(spot);
               setTripSheetOpen(false);
             }}
-            onMarkDone={(tripStopId) => runGatedAction(() => void markTripStopDone({ tripStopId: tripStopId as Id<"tripStops"> }))}
-            onSkipStop={(tripStopId) => runGatedAction(() => void skipTripStop({ tripStopId: tripStopId as Id<"tripStops"> }))}
-            onRouteModeChange={(tripId, mode) => runGatedAction(() => void setTripRouteMode({ tripId: tripId as Id<"trips">, routeMode: mode }))}
+            onMarkDone={(tripStopId) => runGatedAction(() => {
+              if (!effectiveTripData?.trip) {
+                return;
+              }
+
+              runOfflineCapableTripAction(createOfflineAction({
+                tripId: effectiveTripData.trip._id,
+                type: "markDone",
+                tripStopId,
+              }));
+            })}
+            onSkipStop={(tripStopId) => runGatedAction(() => {
+              if (!effectiveTripData?.trip) {
+                return;
+              }
+
+              runOfflineCapableTripAction(createOfflineAction({
+                tripId: effectiveTripData.trip._id,
+                type: "skip",
+                tripStopId,
+              }));
+            })}
+            onRouteModeChange={(tripId, mode) => runGatedAction(() => runOfflineCapableTripAction(createOfflineAction({
+              tripId,
+              type: "setRouteMode",
+              routeMode: mode,
+            })))}
           />
         </DrawerContent>
       </Drawer>
@@ -588,10 +983,23 @@ const ExplorePage = ({ initialDestinationId }: ExplorePageProps) => {
         isNextStop={openSpot?.id === nextStop?.id}
         isInTrip={openSpot ? hasTripSpot(tripStops, openSpot.id) : false}
         onClose={() => setOpenSpotId(null)}
-        onSetNextStop={handleSetNextStop}
-        onRoute={handleRouteSpot}
+        onSetNextStop={(spot) => {
+          const exploreSpot = allSpots.find((candidate) => candidate.id === spot.id);
+          if (exploreSpot) {
+            handleSetNextStop(exploreSpot);
+          }
+        }}
+        onRoute={(spot) => {
+          const exploreSpot = allSpots.find((candidate) => candidate.id === spot.id);
+          if (exploreSpot) {
+            handleRouteSpot(exploreSpot);
+          }
+        }}
         onAddToTrip={(s) => {
-          handleAddSpotToTrip(s);
+          const exploreSpot = allSpots.find((candidate) => candidate.id === s.id);
+          if (exploreSpot) {
+            handleAddSpotToTrip(exploreSpot);
+          }
           setOpenSpotId(null);
         }}
       />

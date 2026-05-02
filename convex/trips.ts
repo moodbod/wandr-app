@@ -4,6 +4,26 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import type { Doc, Id } from "./_generated/dataModel";
 
 const routeMode = v.union(v.literal("walk"), v.literal("drive"));
+const exploreDestinationId = "namibia";
+const offlineAction = v.union(
+  v.object({
+    type: v.literal("markDone"),
+    tripStopId: v.id("tripStops"),
+  }),
+  v.object({
+    type: v.literal("skip"),
+    tripStopId: v.id("tripStops"),
+  }),
+  v.object({
+    type: v.literal("setRouteMode"),
+    routeMode,
+  }),
+  v.object({
+    type: v.literal("moveStop"),
+    tripStopId: v.id("tripStops"),
+    direction: v.union(v.literal("up"), v.literal("down")),
+  }),
+);
 
 async function requireUserId(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
@@ -35,12 +55,39 @@ async function getOpenTrip(ctx: QueryCtx | MutationCtx, userId: Id<"users">, des
     .first();
 }
 
+async function getLatestOpenTripByStatus(
+  ctx: QueryCtx | MutationCtx,
+  userId: Id<"users">,
+  status: "planning" | "active",
+) {
+  return await ctx.db
+    .query("trips")
+    .withIndex("by_userId_and_status_and_updatedAt", (q) => q.eq("userId", userId).eq("status", status))
+    .order("desc")
+    .first();
+}
+
+async function getOpenExploreTrip(ctx: QueryCtx | MutationCtx, userId: Id<"users">) {
+  const exploreTrip = await getOpenTrip(ctx, userId, exploreDestinationId);
+
+  if (exploreTrip) {
+    return exploreTrip;
+  }
+
+  return (await getLatestOpenTripByStatus(ctx, userId, "active")) ?? (await getLatestOpenTripByStatus(ctx, userId, "planning"));
+}
+
 async function getTripStops(ctx: QueryCtx | MutationCtx, tripId: Id<"trips">) {
   return await ctx.db
     .query("tripStops")
     .withIndex("by_tripId_and_position", (q) => q.eq("tripId", tripId))
     .order("asc")
     .collect();
+}
+
+async function getTripPayload(ctx: QueryCtx | MutationCtx, trip: Doc<"trips">) {
+  const stops = await getTripStops(ctx, trip._id);
+  return { trip, stops };
 }
 
 async function requireOwnedTrip(ctx: MutationCtx, tripId: Id<"trips">, allowedStatuses?: Doc<"trips">["status"][]) {
@@ -88,8 +135,57 @@ export const getActiveForDestination = query({
       return null;
     }
 
-    const stops = await getTripStops(ctx, trip._id);
-    return { trip, stops };
+    return await getTripPayload(ctx, trip);
+  },
+});
+
+export const getActiveForExplore = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+
+    if (!userId) {
+      return null;
+    }
+
+    const trip = await getOpenExploreTrip(ctx, userId);
+
+    if (!trip) {
+      return null;
+    }
+
+    return await getTripPayload(ctx, trip);
+  },
+});
+
+export const resumeActive = query({
+  args: { preferredTripId: v.optional(v.id("trips")) },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+
+    if (!userId) {
+      return null;
+    }
+
+    if (args.preferredTripId) {
+      const preferredTrip = await ctx.db.get(args.preferredTripId);
+
+      if (preferredTrip && preferredTrip.userId === userId && preferredTrip.status === "active") {
+        return await getTripPayload(ctx, preferredTrip);
+      }
+    }
+
+    const trip = await ctx.db
+      .query("trips")
+      .withIndex("by_userId_and_status_and_updatedAt", (q) => q.eq("userId", userId).eq("status", "active"))
+      .order("desc")
+      .first();
+
+    if (!trip) {
+      return null;
+    }
+
+    return await getTripPayload(ctx, trip);
   },
 });
 
@@ -125,7 +221,7 @@ export const addStop = mutation({
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
     const now = Date.now();
-    let trip = await getOpenTrip(ctx, userId, args.destinationId);
+    let trip = await getOpenExploreTrip(ctx, userId);
 
     if (trip?.status === "active") {
       throw new ConvexError("Finish this adventure before changing the stop list.");
@@ -134,7 +230,7 @@ export const addStop = mutation({
     if (!trip) {
       const tripId = await ctx.db.insert("trips", {
         userId,
-        destinationId: args.destinationId,
+        destinationId: exploreDestinationId,
         title: "Your adventure",
         status: "planning",
         routeMode: "walk",
@@ -197,24 +293,7 @@ export const moveStop = mutation({
   },
   handler: async (ctx, args) => {
     const { trip, stop } = await requireOwnedStop(ctx, args.tripStopId, ["planning"]);
-    const stops = await getTripStops(ctx, trip._id);
-    const index = stops.findIndex((candidate) => candidate._id === stop._id);
-
-    if (index === -1) {
-      throw new ConvexError("Trip stop not found.");
-    }
-
-    const nextIndex = args.direction === "up" ? index - 1 : index + 1;
-
-    if (nextIndex < 0 || nextIndex >= stops.length) {
-      return null;
-    }
-
-    const other = stops[nextIndex];
-    const now = Date.now();
-    await ctx.db.patch(stop._id, { position: other.position, updatedAt: now });
-    await ctx.db.patch(other._id, { position: stop.position, updatedAt: now });
-    await touchTrip(ctx, trip._id);
+    return await moveOwnedStop(ctx, trip, stop, args.direction);
   },
 });
 
@@ -226,12 +305,12 @@ export const setNextStop = mutation({
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
     const now = Date.now();
-    let trip = await getOpenTrip(ctx, userId, args.destinationId);
+    let trip = await getOpenExploreTrip(ctx, userId);
 
     if (!trip) {
       const tripId = await ctx.db.insert("trips", {
         userId,
-        destinationId: args.destinationId,
+        destinationId: exploreDestinationId,
         title: "Your adventure",
         status: "planning",
         routeMode: "walk",
@@ -345,6 +424,13 @@ export const startTrip = mutation({
       ),
     );
     await ctx.db.patch(trip._id, { status: "active", startedAt: now, updatedAt: now });
+    const updatedTrip = await ctx.db.get(trip._id);
+
+    if (!updatedTrip) {
+      throw new ConvexError("Trip not found.");
+    }
+
+    return await getTripPayload(ctx, updatedTrip);
   },
 });
 
@@ -364,6 +450,15 @@ export const skipStop = mutation({
 
 async function completeStop(ctx: MutationCtx, tripStopId: Id<"tripStops">, status: "done" | "skipped") {
   const { trip, stop } = await requireOwnedStop(ctx, tripStopId, ["active"]);
+  return await completeOwnedStop(ctx, trip, stop, status);
+}
+
+async function completeOwnedStop(
+  ctx: MutationCtx,
+  trip: Doc<"trips">,
+  stop: Doc<"tripStops">,
+  status: "done" | "skipped",
+) {
   const stops = await getTripStops(ctx, trip._id);
   const now = Date.now();
   const nextStop = stops.find((candidate) => candidate.position > stop.position && candidate.status === "planned");
@@ -373,10 +468,17 @@ async function completeStop(ctx: MutationCtx, tripStopId: Id<"tripStops">, statu
   if (nextStop) {
     await ctx.db.patch(nextStop._id, { status: "current", updatedAt: now });
     await ctx.db.patch(trip._id, { updatedAt: now });
-    return;
+  } else {
+    await ctx.db.patch(trip._id, { status: "completed", completedAt: now, updatedAt: now });
   }
 
-  await ctx.db.patch(trip._id, { status: "completed", completedAt: now, updatedAt: now });
+  const updatedTrip = await ctx.db.get(trip._id);
+
+  if (!updatedTrip) {
+    throw new ConvexError("Trip not found.");
+  }
+
+  return await getTripPayload(ctx, updatedTrip);
 }
 
 export const setRouteMode = mutation({
@@ -387,5 +489,100 @@ export const setRouteMode = mutation({
   handler: async (ctx, args) => {
     const trip = await requireOwnedTrip(ctx, args.tripId, ["planning", "active"]);
     await ctx.db.patch(trip._id, { routeMode: args.routeMode, updatedAt: Date.now() });
+    const updatedTrip = await ctx.db.get(trip._id);
+
+    if (!updatedTrip) {
+      throw new ConvexError("Trip not found.");
+    }
+
+    return await getTripPayload(ctx, updatedTrip);
+  },
+});
+
+async function moveOwnedStop(
+  ctx: MutationCtx,
+  trip: Doc<"trips">,
+  stop: Doc<"tripStops">,
+  direction: "up" | "down",
+) {
+  const stops = await getTripStops(ctx, trip._id);
+  const index = stops.findIndex((candidate) => candidate._id === stop._id);
+
+  if (index === -1) {
+    throw new ConvexError("Trip stop not found.");
+  }
+
+  const nextIndex = direction === "up" ? index - 1 : index + 1;
+
+  if (nextIndex < 0 || nextIndex >= stops.length) {
+    return await getTripPayload(ctx, trip);
+  }
+
+  const other = stops[nextIndex];
+  const now = Date.now();
+  await ctx.db.patch(stop._id, { position: other.position, updatedAt: now });
+  await ctx.db.patch(other._id, { position: stop.position, updatedAt: now });
+  await ctx.db.patch(trip._id, { updatedAt: now });
+  const updatedTrip = await ctx.db.get(trip._id);
+
+  if (!updatedTrip) {
+    throw new ConvexError("Trip not found.");
+  }
+
+  return await getTripPayload(ctx, updatedTrip);
+}
+
+export const syncOfflineAction = mutation({
+  args: {
+    tripId: v.id("trips"),
+    action: offlineAction,
+  },
+  handler: async (ctx, args) => {
+    const trip = await requireOwnedTrip(ctx, args.tripId);
+
+    if (trip.status === "completed") {
+      return { applied: false, reason: "completed" as const, ...(await getTripPayload(ctx, trip)) };
+    }
+
+    if (args.action.type === "setRouteMode") {
+      if (trip.status !== "planning" && trip.status !== "active") {
+        return { applied: false, reason: "unsupportedStatus" as const, ...(await getTripPayload(ctx, trip)) };
+      }
+
+      await ctx.db.patch(trip._id, { routeMode: args.action.routeMode, updatedAt: Date.now() });
+      const updatedTrip = await ctx.db.get(trip._id);
+
+      if (!updatedTrip) {
+        throw new ConvexError("Trip not found.");
+      }
+
+      return { applied: true, reason: null, ...(await getTripPayload(ctx, updatedTrip)) };
+    }
+
+    const stop = await ctx.db.get(args.action.tripStopId);
+
+    if (!stop || stop.tripId !== trip._id) {
+      throw new ConvexError("Trip stop not found.");
+    }
+
+    if (args.action.type === "moveStop") {
+      if (trip.status !== "planning") {
+        return { applied: false, reason: "unsupportedStatus" as const, ...(await getTripPayload(ctx, trip)) };
+      }
+
+      const payload = await moveOwnedStop(ctx, trip, stop, args.action.direction);
+      return { applied: true, reason: null, ...payload };
+    }
+
+    if (trip.status !== "active") {
+      return { applied: false, reason: "unsupportedStatus" as const, ...(await getTripPayload(ctx, trip)) };
+    }
+
+    if (stop.status === "done" || stop.status === "skipped") {
+      return { applied: false, reason: "alreadyFinished" as const, ...(await getTripPayload(ctx, trip)) };
+    }
+
+    const payload = await completeOwnedStop(ctx, trip, stop, args.action.type === "markDone" ? "done" : "skipped");
+    return { applied: true, reason: null, ...payload };
   },
 });

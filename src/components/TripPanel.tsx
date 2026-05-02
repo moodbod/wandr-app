@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { Destination, Spot } from "@/data/destinations";
+import type { Spot } from "@/data/destinations";
 import {
   getCurrentStop,
   getTripProgress,
@@ -40,16 +40,23 @@ export type TripPanelData = {
   stops: TripPanelStop[];
 } | null;
 
+type TripPanelSpot = Spot & {
+  destinationId: string;
+  destinationCity: string;
+  destinationCountry: string;
+};
+
 type Props = {
-  destination: Destination;
+  title: string;
+  spots: TripPanelSpot[];
   tripData: TripPanelData | undefined;
-  selectedSpot?: Spot | null;
+  selectedSpot?: TripPanelSpot | null;
   routedSpotId?: string | null;
-  onAddSpot: (spot: Spot) => void;
+  onAddSpot: (spot: TripPanelSpot) => void;
   onRemoveStop: (tripStopId: string) => void;
   onMoveStop: (tripStopId: string, direction: "up" | "down") => void;
   onStartTrip: (tripId: string) => void;
-  onRouteStop: (spot: Spot) => void;
+  onRouteStop: (spot: TripPanelSpot) => void;
   onMarkDone: (tripStopId: string) => void;
   onSkipStop: (tripStopId: string) => void;
   onRouteModeChange: (tripId: string, mode: RouteMode) => void;
@@ -62,8 +69,8 @@ const statusLabel: Record<TripStopStatus, string> = {
   skipped: "Skipped",
 };
 
-function findSpot(destination: Destination, spotId: string) {
-  return destination.spots.find((spot) => spot.id === spotId) ?? null;
+function findSpot(spots: TripPanelSpot[], spotId: string) {
+  return spots.find((spot) => spot.id === spotId) ?? null;
 }
 
 function TripModeToggle({
@@ -102,7 +109,8 @@ function TripModeToggle({
 }
 
 const TripPanel = ({
-  destination,
+  title,
+  spots: allSpots,
   tripData,
   selectedSpot,
   routedSpotId,
@@ -119,7 +127,7 @@ const TripPanel = ({
   const stops = orderedTripStops(tripData?.stops ?? []);
   const progress = getTripProgress(stops);
   const currentStop = trip ? getCurrentStop(stops, trip.status) : null;
-  const currentSpot = currentStop ? findSpot(destination, currentStop.spotId) : null;
+  const currentSpot = currentStop ? findSpot(allSpots, currentStop.spotId) : null;
   const selectedSpotInTrip = selectedSpot ? hasTripSpot(stops, selectedSpot.id) : false;
   const isLoading = tripData === undefined;
 
@@ -128,7 +136,7 @@ const TripPanel = ({
       <div className="px-4 pb-4 pt-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="mt-1 text-2xl font-black leading-none tracking-[-0.04em]">{destination.city}</h2>
+            <h2 className="mt-1 text-2xl font-black leading-none tracking-[-0.04em]">{title}</h2>
           </div>
           <div className="rounded-full bg-secondary px-3 py-1.5 text-xs font-bold text-muted-foreground">
             {progress.total} stops
@@ -182,7 +190,9 @@ const TripPanel = ({
                 <div className="mt-1 flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold">{selectedSpot.name}</div>
-                    <div className="text-xs text-muted-foreground">{selectedSpot.tag}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {[selectedSpot.destinationCity, selectedSpot.tag].filter(Boolean).join(" - ")}
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -251,7 +261,7 @@ const TripPanel = ({
             ) : (
               <ol className="flex flex-col gap-3">
                 {stops.map((stop, index) => {
-                  const spot = findSpot(destination, stop.spotId);
+                  const spot = findSpot(allSpots, stop.spotId);
 
                   if (!spot) {
                     return null;
@@ -283,6 +293,12 @@ const TripPanel = ({
                               <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <span>{index + 1}</span>
                                 <span className="size-1 rounded-full bg-muted-foreground/50" />
+                                {spot.destinationCity ? (
+                                  <>
+                                    <span>{spot.destinationCity}</span>
+                                    <span className="size-1 rounded-full bg-muted-foreground/50" />
+                                  </>
+                                ) : null}
                                 <span>{statusLabel[stop.status]}</span>
                               </div>
                             </div>

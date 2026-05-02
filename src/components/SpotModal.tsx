@@ -1,4 +1,4 @@
-import { X, Footprints, Car, Navigation, MapPin, Sparkles, Plus, Check } from "lucide-react";
+import { X, Footprints, Car, Navigation, MapPin, Plus, Check } from "lucide-react";
 import type { Spot } from "@/data/destinations";
 
 type Props = {
@@ -50,7 +50,6 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
           </button>
 
           <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 bg-background/90 backdrop-blur-sm rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider">
-            <Sparkles className="size-3 text-accent" />
             {spot.tag}
           </div>
 

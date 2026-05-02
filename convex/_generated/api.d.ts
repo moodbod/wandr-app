@@ -9,7 +9,10 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as authz from "../authz.js";
+import type * as content from "../content.js";
 import type * as http from "../http.js";
+import type * as seedData from "../seedData.js";
 import type * as trips from "../trips.js";
 import type * as users from "../users.js";
 
@@ -21,7 +24,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  authz: typeof authz;
+  content: typeof content;
   http: typeof http;
+  seedData: typeof seedData;
   trips: typeof trips;
   users: typeof users;
 }>;

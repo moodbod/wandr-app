@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "./_generated/server";
+import { getCurrentUserRole } from "./authz";
 
 const preferenceValues = ["eat", "see", "gems", "routes"] as const;
 
@@ -17,7 +18,13 @@ export const current = query({
       return null;
     }
 
-    return await ctx.db.get(userId);
+    const user = await ctx.db.get(userId);
+
+    if (!user) {
+      return null;
+    }
+
+    return { ...user, role: getCurrentUserRole(user) };
   },
 });
 

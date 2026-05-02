@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Check, ChevronDown, MapPin } from "lucide-react";
-import { destinations, type Destination } from "@/data/destinations";
+import type { Destination } from "@/data/destinations";
 
 type Props = {
+  destinations: Destination[];
   value: Destination;
   onChange: (d: Destination) => void;
 };
 
-const DestinationPicker = ({ value, onChange }: Props) => {
+const DestinationPicker = ({ destinations, value, onChange }: Props) => {
   const [open, setOpen] = useState(false);
 
   return (
