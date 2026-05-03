@@ -749,7 +749,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
           showDesktopTripPanel ? "lg:left-96" : "",
         ].join(" ")}
       >
-        <div className="flex w-full flex-col sm:mx-auto sm:max-w-2xl sm:gap-2.5">
+        <div className="mx-auto flex w-[calc(100%-1rem)] max-w-[24.5rem] flex-col sm:w-full sm:max-w-2xl sm:gap-2.5">
           {nextStop && routeOpen ? (
             <div className="wandr-bottom-surface overflow-hidden rounded-t-[2rem] bg-card px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
               <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
