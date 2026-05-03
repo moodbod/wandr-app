@@ -188,21 +188,18 @@
   }
 
   .wandr-native-map-shell {
-    inset: 0;
+    height: 100vh;
+    height: 100svh;
     height: 100dvh;
-    width: 100vw;
+    inset: 0;
     overflow: hidden;
     position: fixed;
+    width: 100%;
   }
 
   .wandr-spot-panel {
     max-height: calc(100vh - env(safe-area-inset-top, 0px) - 0.75rem);
     max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 0.75rem);
-  }
-
-  .wandr-trip-stop-row {
-    content-visibility: auto;
-    contain-intrinsic-size: 0 5.5rem;
   }
 
   @media (min-width: 640px) {
@@ -216,5 +213,6 @@
   html,
   body {
     overscroll-behavior: none;
+    background: #1a1a2e;
   }
 }
