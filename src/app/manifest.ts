@@ -10,6 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
+    // DO NOT CHANGE — must match bg-card (#fff) to avoid a visible strip behind the iPhone home indicator
     background_color: "#ffffff",
     theme_color: "#ff6740",
     categories: ["travel", "navigation", "lifestyle"],

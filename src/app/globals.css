@@ -205,6 +205,13 @@
   }
 }
 
+/*
+ * DO NOT CHANGE — PWA standalone mode fix.
+ * The white background matches the bottom sheet card (bg-card) so the
+ * iPhone home-indicator area blends seamlessly with the UI.
+ * Changing this color will re-introduce a visible strip at the bottom
+ * of the screen on iOS devices with Face ID.
+ */
 @media (display-mode: standalone) {
   html,
   body {
