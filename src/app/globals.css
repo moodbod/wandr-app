@@ -54,10 +54,20 @@
   * {
     @apply border-border;
   }
+  html {
+    background: hsl(var(--background));
+  }
+  html,
+  body {
+    min-height: 100%;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
   }
 }
 
@@ -176,39 +186,40 @@
     --marker-avatar-bg: hsl(196 85% 82%);
     --marker-avatar-fg: hsl(196 60% 20%);
   }
+
+  .wandr-explore-shell {
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100svh;
+    min-height: 100dvh;
+  }
+
+  .wandr-top-controls {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+  }
+
+  .wandr-spot-panel {
+    max-height: calc(100vh - env(safe-area-inset-top, 0px) - 0.75rem);
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 0.75rem);
+  }
+
+  @media (min-width: 640px) {
+    .wandr-top-controls {
+      padding-top: calc(env(safe-area-inset-top, 0px) + 1.5rem);
+    }
+
+    .wandr-spot-panel {
+      max-height: 88dvh;
+    }
+  }
 }
 
 @media (display-mode: standalone) {
   html,
   body {
     overscroll-behavior: none;
-  }
-
-  .wandr-explore-shell {
-    height: calc(100dvh + env(safe-area-inset-top));
-  }
-
-  .wandr-bottom-sheet {
-    bottom: 0;
-  }
-
-  .wandr-spot-modal {
-    bottom: 0;
-  }
-
-  .wandr-spot-panel {
-    max-height: calc(92dvh + env(safe-area-inset-bottom));
-  }
-
-  .wandr-spot-body {
-    padding-bottom: 0;
-  }
-
-  .wandr-spot-actions {
-    bottom: 0;
-    margin-top: auto;
-    margin-bottom: 0;
-    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
   }
 }
 
@@ -222,33 +233,7 @@ html.is-standalone-explore body {
 
 html.is-standalone-explore body {
   inset: 0;
+  min-height: 100dvh;
   position: fixed;
   width: 100%;
-}
-
-html.is-standalone-pwa .wandr-explore-shell {
-  height: calc(100dvh + env(safe-area-inset-top));
-}
-
-html.is-standalone-pwa .wandr-bottom-sheet {
-  bottom: 0;
-}
-
-html.is-standalone-pwa .wandr-spot-modal {
-  bottom: 0;
-}
-
-html.is-standalone-pwa .wandr-spot-panel {
-  max-height: calc(92dvh + env(safe-area-inset-bottom));
-}
-
-html.is-standalone-pwa .wandr-spot-body {
-  padding-bottom: 0;
-}
-
-html.is-standalone-pwa .wandr-spot-actions {
-  bottom: 0;
-  margin-top: auto;
-  margin-bottom: 0;
-  padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
 }

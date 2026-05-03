@@ -317,8 +317,8 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   }, [authLoading, currentUser, isAuthenticated]);
 
   const handleOpenSpot = useCallback((spotId: string) => {
-    runGatedAction(() => setOpenSpotId(spotId));
-  }, [runGatedAction]);
+    setOpenSpotId(spotId);
+  }, []);
 
   const handleOnboardingComplete = () => {
     setOnboardingOpen(false);
@@ -582,7 +582,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   }
 
   return (
-    <main className="relative -mt-[env(safe-area-inset-top)] h-[calc(100dvh+env(safe-area-inset-top))] w-full overflow-hidden bg-background text-foreground">
+    <main className="wandr-explore-shell relative w-full overflow-hidden bg-background text-foreground">
       {/* Map */}
       <div className={["absolute inset-0", showDesktopTripPanel ? "lg:left-96" : ""].join(" ")}>
         <MapboxStreetsMap
@@ -601,7 +601,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
       {/* Top */}
       <header
         className={[
-          "absolute left-0 right-0 top-[env(safe-area-inset-top)] z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-6",
+          "wandr-top-controls absolute left-0 right-0 top-0 z-30 px-3 sm:px-6",
           showDesktopTripPanel ? "lg:left-96" : "",
         ].join(" ")}
       >
@@ -819,7 +819,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
                       <div className="mt-1 flex flex-wrap gap-2 sm:mt-auto">
                         <button
                           type="button"
-                          onClick={() => runGatedAction(() => setOpenSpotId(nextStop.id))}
+                          onClick={() => setOpenSpotId(nextStop.id)}
                           className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-white/90 sm:min-h-9 sm:bg-foreground sm:px-3.5 sm:py-2 sm:font-medium sm:text-background sm:hover:bg-foreground/90"
                         >
                           <Eye className="size-3.5" /> View spot

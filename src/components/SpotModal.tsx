@@ -34,7 +34,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
         aria-label="Close"
       />
 
-      <div className="wandr-spot-panel relative flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[1.75rem] border border-border bg-card shadow-2xl animate-in slide-in-from-bottom-6 duration-300 sm:max-h-[88dvh] sm:rounded-3xl sm:zoom-in-95">
+      <div className="wandr-spot-panel relative flex w-full max-w-md flex-col overflow-hidden rounded-t-[1.75rem] border border-border bg-card shadow-2xl animate-in slide-in-from-bottom-6 duration-300 sm:rounded-3xl sm:zoom-in-95">
         <div className="absolute left-1/2 top-2 z-10 h-1.5 w-12 -translate-x-1/2 rounded-full bg-background/75 sm:hidden" />
         {/* Image */}
         <div className="relative aspect-[5/3] w-full shrink-0">
@@ -64,7 +64,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
         </div>
 
         {/* Body */}
-        <div className="wandr-spot-body flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:p-5">
+        <div className="wandr-spot-body flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 sm:p-5">
           {/* ETA row */}
           <div className="grid grid-cols-2 gap-2">
             <div className="flex items-center gap-2.5 rounded-2xl bg-secondary px-3 py-3">
@@ -95,41 +95,42 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
             <p className="text-sm leading-relaxed text-foreground/90">{spot.tip}</p>
           </div>
 
-          {/* Actions */}
-          <div className="wandr-spot-actions sticky bottom-0 -mx-4 -mb-[calc(env(safe-area-inset-bottom)+1rem)] grid grid-cols-2 gap-2 border-t border-border bg-card/95 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] backdrop-blur-md sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
-            <button
-              onClick={() => onAddToTrip(spot)}
-              disabled={isInTrip}
-              className={[
-                "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
-                isInTrip
-                  ? "bg-secondary text-muted-foreground cursor-default"
-                  : "bg-foreground text-background hover:bg-foreground/90",
-              ].join(" ")}
-            >
-              {isInTrip ? <Check className="size-4" /> : <Plus className="size-4" />}
-              {isInTrip ? "In trip" : "Add to trip"}
-            </button>
-            <button
-              onClick={() => onSetNextStop(spot)}
-              disabled={isNextStop}
-              className={[
-                "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
-                isNextStop
-                  ? "bg-secondary text-muted-foreground cursor-default"
-                  : "border border-border hover:bg-secondary",
-              ].join(" ")}
-            >
-              <MapPin className="size-4" />
-              {isNextStop ? "Next stop" : "Set next"}
-            </button>
-            <button
-              onClick={() => onRoute(spot)}
-              className="col-span-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-secondary"
-            >
-              <Navigation className="size-4" /> Route
-            </button>
-          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="wandr-spot-actions grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-card/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:border-0 sm:bg-transparent sm:p-5 sm:pt-0 sm:backdrop-blur-0">
+          <button
+            onClick={() => onAddToTrip(spot)}
+            disabled={isInTrip}
+            className={[
+              "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
+              isInTrip
+                ? "bg-secondary text-muted-foreground cursor-default"
+                : "bg-foreground text-background hover:bg-foreground/90",
+            ].join(" ")}
+          >
+            {isInTrip ? <Check className="size-4" /> : <Plus className="size-4" />}
+            {isInTrip ? "In trip" : "Add to trip"}
+          </button>
+          <button
+            onClick={() => onSetNextStop(spot)}
+            disabled={isNextStop}
+            className={[
+              "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
+              isNextStop
+                ? "bg-secondary text-muted-foreground cursor-default"
+                : "border border-border hover:bg-secondary",
+            ].join(" ")}
+          >
+            <MapPin className="size-4" />
+            {isNextStop ? "Next stop" : "Set next"}
+          </button>
+          <button
+            onClick={() => onRoute(spot)}
+            className="col-span-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-secondary"
+          >
+            <Navigation className="size-4" /> Route
+          </button>
         </div>
       </div>
     </div>

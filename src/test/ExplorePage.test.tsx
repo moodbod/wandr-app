@@ -92,6 +92,10 @@ vi.mock("convex/react", () => ({
       return testState.tripData;
     }
 
+    if (functionName === "content:listPublic") {
+      return destinations;
+    }
+
     if (args && typeof args === "object" && "destinationId" in args) {
       return testState.tripData;
     }

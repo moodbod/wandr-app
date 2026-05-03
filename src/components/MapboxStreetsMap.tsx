@@ -87,10 +87,11 @@ const MapboxStreetsMap = ({
       return;
     }
 
+    const container = containerRef.current;
     mapboxgl.accessToken = accessToken;
 
     const map = new mapboxgl.Map({
-      container: containerRef.current,
+      container,
       style: "mapbox://styles/mapbox/streets-v12",
       center: mapConfig.center,
       zoom: mapConfig.zoom,
@@ -129,7 +130,27 @@ const MapboxStreetsMap = ({
     });
     mapRef.current = map;
 
+    let resizeFrame: number | null = null;
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            if (resizeFrame !== null) {
+              window.cancelAnimationFrame(resizeFrame);
+            }
+
+            resizeFrame = window.requestAnimationFrame(() => {
+              map.resize();
+              resizeFrame = null;
+            });
+          });
+    resizeObserver?.observe(container);
+
     return () => {
+      if (resizeFrame !== null) {
+        window.cancelAnimationFrame(resizeFrame);
+      }
+      resizeObserver?.disconnect();
       geolocateControlRef.current = null;
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
