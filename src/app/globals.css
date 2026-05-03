@@ -209,10 +209,6 @@
   html,
   body {
     overscroll-behavior: none;
-    background: #1a1a2e;
-  }
-
-  .wandr-native-map-shell {
-    bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+    background: #ffffff;
   }
 }
