@@ -1029,6 +1029,16 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
         onSubmitted={() => setAuthOpen(false)}
       />
       <OnboardingDialog open={onboardingOpen} onComplete={handleOnboardingComplete} />
+      <style dangerouslySetInnerHTML={{ __html: `
+        html, body {
+          overscroll-behavior: none;
+          height: 100%;
+          height: 100dvh;
+          overflow: hidden;
+          position: fixed;
+          width: 100%;
+        }
+      `}} />
     </main>
   );
 };
