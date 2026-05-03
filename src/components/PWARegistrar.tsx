@@ -4,6 +4,12 @@ import { useEffect } from "react";
 
 export function PWARegistrar() {
   useEffect(() => {
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      ("standalone" in navigator && (navigator as Navigator & { standalone?: boolean }).standalone === true);
+
+    document.documentElement.classList.toggle("is-standalone-pwa", isStandalone);
+
     if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) {
       return;
     }
