@@ -180,19 +180,15 @@
 
 @media (display-mode: standalone) {
   .wandr-explore-shell {
-    height: calc(100dvh + env(safe-area-inset-top) + env(safe-area-inset-bottom));
+    height: calc(100dvh + env(safe-area-inset-top));
   }
 
   .wandr-bottom-sheet {
-    bottom: env(safe-area-inset-bottom);
-  }
-
-  .wandr-bottom-surface {
-    padding-bottom: 0.625rem;
+    bottom: 0;
   }
 
   .wandr-spot-modal {
-    bottom: calc(0px - env(safe-area-inset-bottom));
+    bottom: 0;
   }
 
   .wandr-spot-panel {
@@ -204,26 +200,23 @@
   }
 
   .wandr-spot-actions {
-    bottom: calc(0px - env(safe-area-inset-bottom));
+    bottom: 0;
+    margin-top: auto;
     margin-bottom: 0;
     padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
   }
 }
 
 html.is-standalone-pwa .wandr-explore-shell {
-  height: calc(100dvh + env(safe-area-inset-top) + env(safe-area-inset-bottom));
+  height: calc(100dvh + env(safe-area-inset-top));
 }
 
 html.is-standalone-pwa .wandr-bottom-sheet {
-  bottom: env(safe-area-inset-bottom);
-}
-
-html.is-standalone-pwa .wandr-bottom-surface {
-  padding-bottom: 0.625rem;
+  bottom: 0;
 }
 
 html.is-standalone-pwa .wandr-spot-modal {
-  bottom: calc(0px - env(safe-area-inset-bottom));
+  bottom: 0;
 }
 
 html.is-standalone-pwa .wandr-spot-panel {
@@ -235,7 +228,8 @@ html.is-standalone-pwa .wandr-spot-body {
 }
 
 html.is-standalone-pwa .wandr-spot-actions {
-  bottom: calc(0px - env(safe-area-inset-bottom));
+  bottom: 0;
+  margin-top: auto;
   margin-bottom: 0;
   padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
 }
