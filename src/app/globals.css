@@ -187,29 +187,12 @@
     --marker-avatar-fg: hsl(196 60% 20%);
   }
 
-  .wandr-explore-shell {
-    height: 100vh;
-    height: 100svh;
-    height: 100dvh;
-    min-height: 100vh;
-    min-height: 100svh;
-    min-height: 100dvh;
-  }
-
-  .wandr-top-controls {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
-  }
-
   .wandr-spot-panel {
     max-height: calc(100vh - env(safe-area-inset-top, 0px) - 0.75rem);
     max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 0.75rem);
   }
 
   @media (min-width: 640px) {
-    .wandr-top-controls {
-      padding-top: calc(env(safe-area-inset-top, 0px) + 1.5rem);
-    }
-
     .wandr-spot-panel {
       max-height: 88dvh;
     }
@@ -223,17 +206,3 @@
   }
 }
 
-html.is-standalone-explore,
-html.is-standalone-explore body {
-  height: 100%;
-  min-height: 100%;
-  overflow: hidden;
-  overscroll-behavior: none;
-}
-
-html.is-standalone-explore body {
-  inset: 0;
-  min-height: 100dvh;
-  position: fixed;
-  width: 100%;
-}

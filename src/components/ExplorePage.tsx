@@ -745,13 +745,13 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
       {/* Bottom */}
       <div
         className={[
-          "wandr-bottom-sheet absolute bottom-0 left-0 right-0 z-30 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6",
+          "wandr-bottom-sheet absolute bottom-0 left-0 right-0 z-30 sm:px-6 sm:pb-6",
           showDesktopTripPanel ? "lg:left-96" : "",
         ].join(" ")}
       >
-        <div className="mx-auto flex w-[calc(100%-1rem)] max-w-[24.5rem] flex-col sm:w-full sm:max-w-2xl sm:gap-2.5">
+        <div className="flex w-full flex-col sm:mx-auto sm:max-w-2xl sm:gap-2.5">
           {nextStop && routeOpen ? (
-            <div className="wandr-bottom-surface rounded-[2rem] bg-card px-2 pb-2.5 pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
+            <div className="wandr-bottom-surface overflow-hidden rounded-t-[2rem] bg-card px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
               <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
               <RoutePanel
                 spot={nextStop}
@@ -764,7 +764,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
               />
             </div>
           ) : nextStop ? (
-            <div className="wandr-bottom-surface rounded-[2rem] bg-card px-2 pb-2.5 pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
+            <div className="wandr-bottom-surface overflow-hidden rounded-t-[2rem] bg-card px-2 pb-0 pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
               <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
               <div className="mb-4 flex items-center justify-between gap-3 sm:hidden">
                 <div className="min-w-0">
@@ -853,7 +853,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
               </div>
             </div>
           ) : (
-            <div className="wandr-bottom-surface rounded-[2rem] border border-border bg-card p-4 text-center text-sm text-muted-foreground shadow-2xl shadow-foreground/15 sm:rounded-2xl sm:shadow-sm">
+            <div className="wandr-bottom-surface rounded-t-[2rem] border border-border bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-sm text-muted-foreground shadow-2xl shadow-foreground/15 sm:rounded-2xl sm:pb-4 sm:shadow-sm">
               No Namibia spots in this category yet.
             </div>
           )}
