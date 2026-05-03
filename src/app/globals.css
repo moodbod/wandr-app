@@ -187,6 +187,16 @@
     --marker-avatar-fg: hsl(196 60% 20%);
   }
 
+  .wandr-native-map-shell {
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
+    inset: 0;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+
   .wandr-spot-panel {
     max-height: calc(100vh - env(safe-area-inset-top, 0px) - 0.75rem);
     max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 0.75rem);

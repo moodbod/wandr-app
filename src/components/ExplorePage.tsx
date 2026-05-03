@@ -582,7 +582,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   }
 
   return (
-    <main className="relative min-h-dvh w-full overflow-hidden bg-background text-foreground">
+    <main className="wandr-native-map-shell bg-background text-foreground">
       {/* Map */}
       <div className={["absolute inset-0", showDesktopTripPanel ? "lg:left-96" : ""].join(" ")}>
         <MapboxStreetsMap
@@ -764,7 +764,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
               />
             </div>
           ) : nextStop ? (
-            <div className="wandr-bottom-surface overflow-hidden rounded-t-[2rem] bg-card px-2 pb-0 pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
+            <div className="wandr-bottom-surface overflow-hidden rounded-t-[2rem] bg-card px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
               <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
               <div className="mb-4 flex items-center justify-between gap-3 sm:hidden">
                 <div className="min-w-0">
