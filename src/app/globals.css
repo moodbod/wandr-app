@@ -188,13 +188,9 @@
   }
 
   .wandr-native-map-shell {
-    height: 100vh;
-    height: 100svh;
-    height: 100dvh;
+    position: fixed;
     inset: 0;
     overflow: hidden;
-    position: fixed;
-    width: 100%;
   }
 
   .wandr-spot-panel {
@@ -214,5 +210,9 @@
   body {
     overscroll-behavior: none;
     background: #1a1a2e;
+  }
+
+  .wandr-native-map-shell {
+    bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
   }
 }
