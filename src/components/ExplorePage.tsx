@@ -3,14 +3,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
+import dynamic from "next/dynamic";
 import { Search, Coffee, Eye, Gem, Map, Route as RouteIcon, Navigation, SlidersHorizontal, ChevronDown, ListChecks } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { AuthDialog } from "@/components/AuthDialog";
 import { AuthStatus } from "@/components/AuthStatus";
-import MapboxStreetsMap, { type RouteSummary } from "@/components/MapboxStreetsMap";
+import type { RouteSummary } from "@/components/MapboxStreetsMap";
 import { OnboardingDialog } from "@/components/OnboardingDialog";
 import RoutePanel from "@/components/RoutePanel";
+import { SpotImage } from "@/components/SpotImage";
 import SpotModal from "@/components/SpotModal";
 import TripPanel from "@/components/TripPanel";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
@@ -53,6 +55,15 @@ const namibiaMap = {
   zoom: 5.2,
   label: "Namibia",
 };
+
+const MapboxStreetsMap = dynamic(() => import("@/components/MapboxStreetsMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="absolute inset-0 grid place-items-center bg-secondary text-sm font-medium text-muted-foreground">
+      Loading map...
+    </div>
+  ),
+});
 
 function isTripData(value: unknown): value is PersistedTripData {
   return Boolean(
@@ -790,7 +801,16 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
                 className="wandr-recommendation-card group overflow-hidden rounded-[1.45rem] bg-foreground text-left text-background shadow-xl shadow-foreground/15 transition-transform active:scale-[0.99] sm:rounded-[1.35rem] sm:border sm:border-border sm:bg-card sm:text-foreground sm:shadow-2xl sm:shadow-foreground/15 sm:hover:border-foreground/20"
               >
                 <div className="relative min-h-[7.6rem] sm:grid sm:min-h-[10.5rem] sm:grid-cols-[8rem_1fr]">
-                  <img src={nextStop.image} alt={nextStop.name} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:static sm:min-h-[10.5rem]" loading="lazy" />
+                  <div className="absolute inset-0 sm:relative sm:inset-auto sm:min-h-[10.5rem]">
+                    <SpotImage
+                      src={nextStop.image}
+                      alt={nextStop.name}
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      sizes="(min-width: 640px) 8rem, 100vw"
+                      fill
+                      priority
+                    />
+                  </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent sm:hidden" />
                   <div className="relative flex min-h-[7.6rem] min-w-0 flex-col justify-end gap-1.5 p-4 sm:min-h-0 sm:justify-start sm:gap-2 sm:p-4">
                     <div className="flex items-start justify-between gap-3">

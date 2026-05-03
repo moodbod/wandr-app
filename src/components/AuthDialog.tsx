@@ -11,23 +11,25 @@ type AuthDialogProps = {
 };
 
 type AuthFlow = "signIn" | "signUp";
+type PendingFlow = AuthFlow | "google" | null;
 
 export function AuthDialog({ open, onClose, onSubmitted }: AuthDialogProps) {
   const { signIn } = useAuthActions();
   const [flow, setFlow] = useState<AuthFlow>("signIn");
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState<PendingFlow>(null);
 
   if (!open) {
     return null;
   }
 
   const title = flow === "signIn" ? "Sign in to keep going" : "Create your Wandr account";
+  const isPending = pending !== null;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
-    setPending(true);
+    setPending(flow);
 
     try {
       const formData = new FormData(event.currentTarget);
@@ -37,7 +39,24 @@ export function AuthDialog({ open, onClose, onSubmitted }: AuthDialogProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
-      setPending(false);
+      setPending(null);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setPending("google");
+
+    try {
+      const redirectTo = `${window.location.pathname}${window.location.search}`;
+      const result = await signIn("google", { redirectTo });
+
+      if (result.signingIn) {
+        onSubmitted();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start Google sign-in. Please try again.");
+      setPending(null);
     }
   };
 
@@ -59,6 +78,28 @@ export function AuthDialog({ open, onClose, onSubmitted }: AuthDialogProps) {
           >
             <X className="size-4" />
           </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={isPending}
+          className="mb-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {pending === "google" ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <span className="grid size-4 place-items-center rounded-full bg-foreground text-[10px] font-semibold text-background" aria-hidden>
+              G
+            </span>
+          )}
+          Continue with Google
+        </button>
+
+        <div className="mb-4 flex items-center gap-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          or
+          <span className="h-px flex-1 bg-border" />
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -92,21 +133,22 @@ export function AuthDialog({ open, onClose, onSubmitted }: AuthDialogProps) {
 
           <button
             type="submit"
-            disabled={pending}
+            disabled={isPending}
             className="mt-1 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+            {pending === flow ? <Loader2 className="size-4 animate-spin" /> : null}
             {flow === "signIn" ? "Sign in" : "Sign up"}
           </button>
         </form>
 
         <button
           type="button"
+          disabled={isPending}
           onClick={() => {
             setError(null);
             setFlow((current) => (current === "signIn" ? "signUp" : "signIn"));
           }}
-          className="mt-4 w-full text-center text-sm font-medium text-muted-foreground hover:text-foreground"
+          className="mt-4 w-full text-center text-sm font-medium text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-70"
         >
           {flow === "signIn" ? "New here? Create an account" : "Already have an account? Sign in"}
         </button>

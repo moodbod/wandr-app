@@ -1,4 +1,5 @@
 import { X, Footprints, Car, Navigation, MapPin, Plus, Check } from "lucide-react";
+import { SpotImage } from "@/components/SpotImage";
 import type { Spot } from "@/data/destinations";
 
 type Props = {
@@ -38,7 +39,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
         <div className="absolute left-1/2 top-2 z-10 h-1.5 w-12 -translate-x-1/2 rounded-full bg-background/75 sm:hidden" />
         {/* Image */}
         <div className="relative aspect-[5/3] w-full shrink-0">
-          <img src={spot.image} alt={spot.name} className="h-full w-full object-cover" />
+          <SpotImage src={spot.image} alt={spot.name} className="object-cover" sizes="(min-width: 640px) 28rem, 100vw" fill />
           <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 via-transparent to-transparent" />
 
           <button

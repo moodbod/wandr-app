@@ -1,9 +1,13 @@
 "use client";
 
-import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { ConvexAuthProvider, useConvexAuth } from "@convex-dev/auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConvexReactClient } from "convex/react";
-import { useState, type ReactNode } from "react";
+import { useQuery } from "convex/react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
+import { api } from "../../convex/_generated/api";
+import { OnboardingDialog } from "@/components/OnboardingDialog";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +18,32 @@ const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 type ProvidersProps = {
   children: ReactNode;
 };
+
+function NonHomeOnboardingGate() {
+  const pathname = usePathname();
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const shouldCheckOnboarding = isAuthenticated && pathname !== "/";
+  const currentUser = useQuery(api.users.current, shouldCheckOnboarding ? {} : "skip");
+  const [completedUserId, setCompletedUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!currentUser || completedUserId === null || currentUser._id === completedUserId) {
+      return;
+    }
+
+    setCompletedUserId(null);
+  }, [completedUserId, currentUser]);
+
+  const open = Boolean(
+    !isLoading &&
+      shouldCheckOnboarding &&
+      currentUser &&
+      !currentUser.onboardingCompleted &&
+      currentUser._id !== completedUserId,
+  );
+
+  return <OnboardingDialog open={open} onComplete={() => setCompletedUserId(currentUser?._id ?? null)} />;
+}
 
 export function Providers({ children }: ProvidersProps) {
   const [queryClient] = useState(() => new QueryClient());
@@ -45,6 +75,7 @@ export function Providers({ children }: ProvidersProps) {
           <Toaster />
           <Sonner />
           {children}
+          <NonHomeOnboardingGate />
         </TooltipProvider>
       </QueryClientProvider>
     </ConvexAuthProvider>

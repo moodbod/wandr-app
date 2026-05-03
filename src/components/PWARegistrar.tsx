@@ -31,7 +31,13 @@ export function PWARegistrar() {
       }
     };
 
-    void registerServiceWorker();
+    if (typeof window.requestIdleCallback === "function") {
+      const idleId = window.requestIdleCallback(() => void registerServiceWorker(), { timeout: 3000 });
+      return () => window.cancelIdleCallback(idleId);
+    }
+
+    const timeoutId = globalThis.setTimeout(() => void registerServiceWorker(), 2500);
+    return () => globalThis.clearTimeout(timeoutId);
   }, []);
 
   return null;

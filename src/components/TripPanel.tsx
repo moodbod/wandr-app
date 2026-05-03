@@ -276,6 +276,7 @@ const TripPanel = ({
                       key={stop._id}
                       className={[
                         "rounded-[1.15rem] bg-card p-3 shadow-sm ring-1",
+                        "wandr-trip-stop-row",
                         isCurrent ? "ring-accent/30" : "ring-border",
                         stop.status === "done" || stop.status === "skipped" ? "opacity-70" : "",
                       ].join(" ")}

@@ -38,6 +38,11 @@ type CurrentPosition = {
   lngLat: LngLat;
   accuracy: number;
 };
+type MarkerHandle = {
+  id: string;
+  element: HTMLButtonElement;
+  marker: Marker;
+};
 
 const categoryInitials: Record<Spot["category"], string> = {
   eat: "E",
@@ -76,7 +81,7 @@ const MapboxStreetsMap = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
   const geolocateControlRef = useRef<GeolocateControl | null>(null);
-  const markersRef = useRef<Marker[]>([]);
+  const markersRef = useRef<MarkerHandle[]>([]);
   const [ready, setReady] = useState(false);
   const [currentPosition, setCurrentPosition] = useState<CurrentPosition | null>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<LngLat[]>([]);
@@ -152,7 +157,7 @@ const MapboxStreetsMap = ({
       }
       resizeObserver?.disconnect();
       geolocateControlRef.current = null;
-      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current.forEach(({ marker }) => marker.remove());
       markersRef.current = [];
       map.remove();
       mapRef.current = null;
@@ -199,17 +204,15 @@ const MapboxStreetsMap = ({
       return;
     }
 
-    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current.forEach(({ marker }) => marker.remove());
     markersRef.current = [];
 
     spots.forEach((spot) => {
-      const isHighlighted = spot.id === highlightedSpotId;
       const button = document.createElement("button");
       button.type = "button";
       button.className = [
         "wandr-photo-marker",
         `wandr-photo-marker--${markerTone(spot)}`,
-        isHighlighted ? "wandr-photo-marker--active" : "",
       ].join(" ");
       button.ariaLabel = `Open details for ${spot.name}`;
       button.addEventListener("click", () => onOpenSpot(spot.id));
@@ -239,13 +242,23 @@ const MapboxStreetsMap = ({
       visual.append(photoWrap, stem);
       button.append(visual);
 
-      markersRef.current.push(
-        new mapboxgl.Marker({ element: button, anchor: "bottom" })
-          .setLngLat(spot.lngLat)
-          .addTo(map)
-      );
+      const marker = new mapboxgl.Marker({ element: button, anchor: "bottom" })
+        .setLngLat(spot.lngLat)
+        .addTo(map);
+
+      markersRef.current.push({ id: spot.id, element: button, marker });
     });
-  }, [highlightedSpotId, onOpenSpot, ready, spots]);
+  }, [onOpenSpot, ready, spots]);
+
+  useEffect(() => {
+    if (!ready) {
+      return;
+    }
+
+    markersRef.current.forEach(({ id, element }) => {
+      element.classList.toggle("wandr-photo-marker--active", id === highlightedSpotId);
+    });
+  }, [highlightedSpotId, ready, spots]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -253,7 +266,7 @@ const MapboxStreetsMap = ({
       return;
     }
 
-    const routeTargets = routeStops.length > 0 ? routeStops : routeOpen && nextStop ? [nextStop] : [];
+    const routeTargets = routeOpen ? (routeStops.length > 0 ? routeStops : nextStop ? [nextStop] : []) : [];
     const origin = currentPosition?.lngLat ?? mapConfig.center;
     const coordinates = [origin, ...routeTargets.map((spot) => spot.lngLat)];
     const abortController = new AbortController();
@@ -270,7 +283,7 @@ const MapboxStreetsMap = ({
     url.searchParams.set("alternatives", "false");
     url.searchParams.set("continue_straight", "false");
     url.searchParams.set("geometries", "geojson");
-    url.searchParams.set("overview", "full");
+    url.searchParams.set("overview", "simplified");
     url.searchParams.set("steps", "false");
     url.searchParams.set("access_token", accessToken);
 
