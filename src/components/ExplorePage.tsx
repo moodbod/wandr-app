@@ -582,9 +582,9 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   }
 
   return (
-    <main className="wandr-explore-shell relative -mt-[env(safe-area-inset-top)] h-[calc(100dvh+env(safe-area-inset-top))] w-full overflow-hidden bg-background text-foreground">
+    <main className="relative -mt-[env(safe-area-inset-top)] h-[calc(100dvh+env(safe-area-inset-top))] w-full overflow-hidden bg-background text-foreground">
       {/* Map */}
-      <div className={["wandr-map-layer absolute inset-0", showDesktopTripPanel ? "lg:left-96" : ""].join(" ")}>
+      <div className={["absolute inset-0", showDesktopTripPanel ? "lg:left-96" : ""].join(" ")}>
         <MapboxStreetsMap
           mapConfig={namibiaMap}
           spots={visibleSpots}
