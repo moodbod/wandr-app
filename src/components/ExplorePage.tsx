@@ -1,22 +1,20 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { Search, Coffee, Eye, Gem, Map as MapIcon, Route as RouteIcon, Navigation, SlidersHorizontal, ChevronDown, ListChecks } from "lucide-react";
+import { Search, Coffee, Eye, Gem, Map, Route as RouteIcon, Navigation, SlidersHorizontal, ChevronDown, ListChecks } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { AuthDialog } from "@/components/AuthDialog";
 import { AuthStatus } from "@/components/AuthStatus";
-import type { RouteSummary } from "@/components/MapboxStreetsMap";
+import MapboxStreetsMap, { type RouteSummary } from "@/components/MapboxStreetsMap";
 import { OnboardingDialog } from "@/components/OnboardingDialog";
 import RoutePanel from "@/components/RoutePanel";
-import { SpotImage } from "@/components/SpotImage";
 import SpotModal from "@/components/SpotModal";
 import TripPanel from "@/components/TripPanel";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
-import { destinations as fallbackDestinations, type Destination, type Spot } from "@/data/destinations";
+import type { Destination, Spot } from "@/data/destinations";
 import {
   applyOfflineAction,
   createOfflineAction,
@@ -31,17 +29,12 @@ import {
 import { getCurrentStop, getRouteStopIds, getTripProgress, hasTripSpot, orderedTripStops } from "@/lib/tripPlanner";
 
 const categories = [
-  { id: "all", label: "All", mobileLabel: "All", icon: MapIcon },
+  { id: "all", label: "All", mobileLabel: "All", icon: Map },
   { id: "eat", label: "Eat", mobileLabel: "Eat", icon: Coffee },
   { id: "see", label: "See", mobileLabel: "See", icon: Eye },
   { id: "gems", label: "Hidden gems", mobileLabel: "Gems", icon: Gem },
   { id: "routes", label: "Routes", mobileLabel: "Routes", icon: RouteIcon },
 ] as const;
-
-const MapboxStreetsMap = dynamic(() => import("@/components/MapboxStreetsMap"), {
-  ssr: false,
-  loading: () => <MapLoadingState />,
-});
 
 type GatedAction = () => void;
 
@@ -60,27 +53,6 @@ const namibiaMap = {
   zoom: 5.2,
   label: "Namibia",
 };
-const fallbackFirstSpotId = fallbackDestinations[0]?.spots[0]?.id ?? null;
-const preloadedSpotImages = new Set<string>();
-
-function MapLoadingState() {
-  return (
-    <div className="absolute inset-0 grid place-items-center bg-secondary text-sm font-medium text-muted-foreground">
-      Loading map...
-    </div>
-  );
-}
-
-function preloadSpotImage(src?: string) {
-  if (typeof window === "undefined" || !src || preloadedSpotImages.has(src)) {
-    return;
-  }
-
-  preloadedSpotImages.add(src);
-  const image = new window.Image();
-  image.decoding = "async";
-  image.src = src;
-}
 
 function isTripData(value: unknown): value is PersistedTripData {
   return Boolean(
@@ -120,8 +92,7 @@ function snapshotIdentity(snapshot: ActiveTripSnapshot | null) {
 
 const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePageProps) => {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const [catalogData, setCatalogData] = useState<Destination[] | undefined>(() => fallbackDestinations);
-  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const catalogData = useQuery(api.content.listPublic, {});
   const destinations = useMemo(() => (isDestinationList(catalogData) ? catalogData : []), [catalogData]);
   const allSpots = useMemo<ExploreSpot[]>(
     () =>
@@ -135,15 +106,12 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
       ),
     [destinations],
   );
-  const spotById = useMemo(() => new Map(allSpots.map((spot) => [spot.id, spot])), [allSpots]);
   const currentUser = useQuery(api.users.current, isAuthenticated ? {} : "skip");
   const [localSnapshot, setLocalSnapshot] = useState<ActiveTripSnapshot | null>(() => readActiveTripSnapshot());
   const [optimisticTripData, setOptimisticTripData] = useState<PersistedTripData | null>(null);
   const [offlineQueue, setOfflineQueue] = useState<OfflineTripAction[]>(() => readOfflineTripQueue());
   const [activeCat, setActiveCat] = useState<(typeof categories)[number]["id"]>("all");
-  const [fallbackNextStopId, setFallbackNextStopId] = useState<string | null>(
-    localSnapshot?.routedSpotId ?? fallbackFirstSpotId,
-  );
+  const [fallbackNextStopId, setFallbackNextStopId] = useState<string | null>(localSnapshot?.routedSpotId ?? null);
   const [openSpotId, setOpenSpotId] = useState<string | null>(null);
   const [fallbackRouteMode, setFallbackRouteMode] = useState<"walk" | "drive">("walk");
   const [routeOpen, setRouteOpen] = useState(() => Boolean(localSnapshot?.routeOpen));
@@ -153,6 +121,10 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   const [authOpen, setAuthOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const pendingActionRef = useRef<GatedAction | null>(null);
+  const tripData = useQuery(
+    api.trips.getActiveForExplore,
+    isAuthenticated && currentUser?.onboardingCompleted ? {} : "skip"
+  );
   const addTripStop = useMutation(api.trips.addStop);
   const removeTripStop = useMutation(api.trips.removeStop);
   const setNextTripStop = useMutation(api.trips.setNextStop);
@@ -161,45 +133,10 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const syncingRef = useRef(false);
 
-  useEffect(() => {
-    const abortController = new AbortController();
-
-    fetch("/api/catalog", { signal: abortController.signal })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Catalog request failed: ${response.status}`);
-        }
-
-        return response.json();
-      })
-      .then((payload: unknown) => {
-        if (isDestinationList(payload)) {
-          setCatalogData(payload);
-        }
-      })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-      })
-      .finally(() => {
-        if (!abortController.signal.aborted) {
-          setCatalogLoaded(true);
-        }
-      });
-
-    return () => abortController.abort();
-  }, []);
-
-  useEffect(() => {
-    allSpots.forEach((spot) => preloadSpotImage(spot.image));
-  }, [allSpots]);
-
   const visibleSpots = useMemo(
     () => allSpots.filter((s) => activeCat === "all" || activeCat === "routes" || s.category === activeCat),
     [allSpots, activeCat]
   );
-  const visibleSpotIds = useMemo(() => visibleSpots.map((spot) => spot.id), [visibleSpots]);
 
   const resumeTripData = useQuery(
     api.trips.resumeActive,
@@ -210,18 +147,19 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   const effectiveTripData =
     optimisticTripData ??
     (isTripData(resumeTripData) ? resumeTripData : null) ??
+    (isTripData(tripData) ? tripData : null) ??
     localSnapshot;
   const tripStops = useMemo(() => orderedTripStops(effectiveTripData?.stops ?? []), [effectiveTripData?.stops]);
   const canUseLocalOfflineTrip = !isOnline && localSnapshot?.trip.status === "active";
   const tripPanelData = (isAuthenticated && currentUser?.onboardingCompleted) || canUseLocalOfflineTrip ? effectiveTripData : null;
   const currentTripStop = effectiveTripData?.trip ? getCurrentStop(tripStops, effectiveTripData.trip.status) : null;
-  const fallbackNextStop = (fallbackNextStopId ? spotById.get(fallbackNextStopId) : undefined) ?? allSpots[0];
+  const fallbackNextStop = allSpots.find((s) => s.id === fallbackNextStopId) ?? allSpots[0];
   const routedFallbackStop = routeOpen ? fallbackNextStop : null;
   const nextStop: ExploreSpot | undefined =
-    routedFallbackStop ?? (currentTripStop ? spotById.get(currentTripStop.spotId) : null) ?? fallbackNextStop;
+    routedFallbackStop ?? (currentTripStop ? allSpots.find((s) => s.id === currentTripStop.spotId) : null) ?? fallbackNextStop;
   const routedSpotId = routeOpen ? nextStop?.id ?? null : null;
   const openSpot: ExploreSpot | null =
-    (openSpotId ? spotById.get(openSpotId) : undefined) ?? null;
+    allSpots.find((s) => s.id === openSpotId) ?? null;
   const routeMode = effectiveTripData?.trip.routeMode ?? fallbackRouteMode;
   const activeCategory = categories.find((category) => category.id === activeCat) ?? categories[0];
   const tripProgress = getTripProgress(tripStops);
@@ -236,9 +174,9 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   const routeStopsForMap = useMemo(() => {
     const stopIds = getRouteStopIds(tripStops, effectiveTripData?.trip.status);
     return stopIds
-      .map((spotId) => spotById.get(spotId))
+      .map((spotId) => allSpots.find((spot) => spot.id === spotId))
       .filter((spot): spot is NonNullable<typeof spot> => Boolean(spot));
-  }, [effectiveTripData?.trip.status, spotById, tripStops]);
+  }, [allSpots, effectiveTripData?.trip.status, tripStops]);
 
   useEffect(() => {
     if (fallbackNextStopId || allSpots.length === 0) {
@@ -316,12 +254,12 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   }, [effectiveTripData, routeOpen, routedSpotId]);
 
   useEffect(() => {
-    if (!isOnline || offlineQueue.length > 0 || !resumeTripData) {
+    if (!isOnline || offlineQueue.length > 0 || (!resumeTripData && !tripData)) {
       return;
     }
 
     setOptimisticTripData(null);
-  }, [isOnline, offlineQueue.length, resumeTripData]);
+  }, [isOnline, offlineQueue.length, resumeTripData, tripData]);
 
   const runGatedAction = useCallback(
     (action: GatedAction) => {
@@ -379,8 +317,8 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   }, [authLoading, currentUser, isAuthenticated]);
 
   const handleOpenSpot = useCallback((spotId: string) => {
-    setOpenSpotId(spotId);
-  }, []);
+    runGatedAction(() => setOpenSpotId(spotId));
+  }, [runGatedAction]);
 
   const handleOnboardingComplete = () => {
     setOnboardingOpen(false);
@@ -620,78 +558,17 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
     setRouteSummary(summary);
   }, []);
 
-  const handleRemoveStop = useCallback((tripStopId: string) => {
-    runGatedAction(() => void removeTripStop({ tripStopId: tripStopId as Id<"tripStops"> }));
-  }, [removeTripStop, runGatedAction]);
+  if (catalogData === undefined) {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-background p-6 text-foreground">
+        <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
+          Loading places...
+        </div>
+      </main>
+    );
+  }
 
-  const handleMoveStop = useCallback((tripStopId: string, direction: "up" | "down") => {
-    runGatedAction(() => {
-      if (!effectiveTripData?.trip) {
-        return;
-      }
-
-      runOfflineCapableTripAction(createOfflineAction({
-        tripId: effectiveTripData.trip._id,
-        type: "moveStop",
-        tripStopId,
-        direction,
-      }));
-    });
-  }, [effectiveTripData?.trip, runGatedAction, runOfflineCapableTripAction]);
-
-  const handleStartTripFromPanel = useCallback((tripId: string) => {
-    runGatedAction(() => void startTrip({ tripId: tripId as Id<"trips"> }));
-  }, [runGatedAction, startTrip]);
-
-  const handleStartTripFromSheet = useCallback((tripId: string) => {
-    runGatedAction(() => {
-      void startTrip({ tripId: tripId as Id<"trips"> });
-      setTripSheetOpen(false);
-    });
-  }, [runGatedAction, startTrip]);
-
-  const handleRouteStopFromSheet = useCallback((spot: ExploreSpot) => {
-    handleRouteSpot(spot);
-    setTripSheetOpen(false);
-  }, [handleRouteSpot]);
-
-  const handleMarkDone = useCallback((tripStopId: string) => {
-    runGatedAction(() => {
-      if (!effectiveTripData?.trip) {
-        return;
-      }
-
-      runOfflineCapableTripAction(createOfflineAction({
-        tripId: effectiveTripData.trip._id,
-        type: "markDone",
-        tripStopId,
-      }));
-    });
-  }, [effectiveTripData?.trip, runGatedAction, runOfflineCapableTripAction]);
-
-  const handleSkipStop = useCallback((tripStopId: string) => {
-    runGatedAction(() => {
-      if (!effectiveTripData?.trip) {
-        return;
-      }
-
-      runOfflineCapableTripAction(createOfflineAction({
-        tripId: effectiveTripData.trip._id,
-        type: "skip",
-        tripStopId,
-      }));
-    });
-  }, [effectiveTripData?.trip, runGatedAction, runOfflineCapableTripAction]);
-
-  const handlePanelRouteModeChange = useCallback((tripId: string, mode: "walk" | "drive") => {
-    runGatedAction(() => runOfflineCapableTripAction(createOfflineAction({
-      tripId,
-      type: "setRouteMode",
-      routeMode: mode,
-    })));
-  }, [runGatedAction, runOfflineCapableTripAction]);
-
-  if (catalogLoaded && allSpots.length === 0) {
+  if (allSpots.length === 0) {
     return (
       <main className="grid min-h-dvh place-items-center bg-background p-6 text-foreground">
         <div className="max-w-sm rounded-lg border border-border bg-card p-5 text-center shadow-sm">
@@ -705,18 +582,12 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   }
 
   return (
-    <main className="fixed inset-x-0 bottom-0 top-[calc(0px_-_env(safe-area-inset-top))] overflow-hidden bg-transparent text-foreground">
+    <main className="relative -mt-[env(safe-area-inset-top)] h-[calc(100dvh+env(safe-area-inset-top))] w-full overflow-hidden bg-background text-foreground">
       {/* Map */}
-      <div
-        className={[
-          "fixed inset-x-0 bottom-[calc(0px_-_env(safe-area-inset-bottom))] top-[calc(0px_-_env(safe-area-inset-top))]",
-          showDesktopTripPanel ? "lg:left-96" : "",
-        ].join(" ")}
-      >
+      <div className={["absolute inset-0", showDesktopTripPanel ? "lg:left-96" : ""].join(" ")}>
         <MapboxStreetsMap
           mapConfig={namibiaMap}
-          spots={allSpots}
-          visibleSpotIds={visibleSpotIds}
+          spots={visibleSpots}
           nextStop={nextStop}
           highlightedSpotId={highlightedSpotId}
           routeStops={routeStopsForMap}
@@ -874,13 +745,13 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
       {/* Bottom */}
       <div
         className={[
-          "absolute bottom-[calc(0px_-_env(safe-area-inset-bottom))] left-0 right-0 z-30 sm:bottom-0 sm:px-6 sm:pb-6",
+          "absolute bottom-0 left-0 right-0 z-30 sm:px-6 sm:pb-6",
           showDesktopTripPanel ? "lg:left-96" : "",
         ].join(" ")}
       >
         <div className="mx-auto flex w-[calc(100%-1rem)] max-w-[24.5rem] flex-col sm:w-full sm:max-w-2xl sm:gap-2.5">
           {nextStop && routeOpen ? (
-            <div className="rounded-t-[2rem] bg-card px-2 pb-[env(safe-area-inset-bottom)] pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
+            <div className="rounded-t-[2rem] bg-card px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
               <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
               <RoutePanel
                 spot={nextStop}
@@ -893,7 +764,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
               />
             </div>
           ) : nextStop ? (
-            <div className="rounded-t-[2rem] bg-card px-2 pb-0 pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
+            <div className="rounded-t-[2rem] bg-card px-2 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
               <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
               <div className="mb-4 flex items-center justify-between gap-3 sm:hidden">
                 <div className="min-w-0">
@@ -916,19 +787,10 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
               </div>
 
               <div
-                className="group -mx-2 overflow-hidden rounded-t-[1.45rem] bg-foreground pb-[env(safe-area-inset-bottom)] text-left text-background shadow-xl shadow-foreground/15 transition-transform active:scale-[0.99] sm:mx-0 sm:rounded-[1.35rem] sm:border sm:border-border sm:bg-card sm:pb-0 sm:text-foreground sm:shadow-2xl sm:shadow-foreground/15 sm:hover:border-foreground/20"
+                className="group overflow-hidden rounded-[1.45rem] bg-foreground text-left text-background shadow-xl shadow-foreground/15 transition-transform active:scale-[0.99] sm:rounded-[1.35rem] sm:border sm:border-border sm:bg-card sm:text-foreground sm:shadow-2xl sm:shadow-foreground/15 sm:hover:border-foreground/20"
               >
                 <div className="relative min-h-[7.6rem] sm:grid sm:min-h-[10.5rem] sm:grid-cols-[8rem_1fr]">
-                  <div className="absolute inset-0 sm:relative sm:min-h-[10.5rem]">
-                    <SpotImage
-                      src={nextStop.image}
-                      alt={nextStop.name}
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      sizes="(min-width: 640px) 8rem, 100vw"
-                      fill
-                      priority
-                    />
-                  </div>
+                  <img src={nextStop.image} alt={nextStop.name} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:static sm:min-h-[10.5rem]" loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent sm:hidden" />
                   <div className="relative flex min-h-[7.6rem] min-w-0 flex-col justify-end gap-1.5 p-4 sm:min-h-0 sm:justify-start sm:gap-2 sm:p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -957,7 +819,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
                       <div className="mt-1 flex flex-wrap gap-2 sm:mt-auto">
                         <button
                           type="button"
-                          onClick={() => handleOpenSpot(nextStop.id)}
+                          onClick={() => runGatedAction(() => setOpenSpotId(nextStop.id))}
                           className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-white/90 sm:min-h-9 sm:bg-foreground sm:px-3.5 sm:py-2 sm:font-medium sm:text-background sm:hover:bg-foreground/90"
                         >
                           <Eye className="size-3.5" /> View spot
@@ -991,7 +853,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
               </div>
             </div>
           ) : (
-            <div className="rounded-t-[2rem] border border-border bg-card p-4 text-center text-sm text-muted-foreground shadow-2xl shadow-foreground/15 sm:rounded-2xl sm:shadow-sm">
+            <div className="rounded-t-[2rem] border border-border bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-sm text-muted-foreground shadow-2xl shadow-foreground/15 sm:rounded-2xl sm:pb-4 sm:shadow-sm">
               No Namibia spots in this category yet.
             </div>
           )}
@@ -1007,13 +869,48 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
             selectedSpot={openSpot}
             routedSpotId={routedSpotId}
             onAddSpot={handleAddSpotToTrip}
-            onRemoveStop={handleRemoveStop}
-            onMoveStop={handleMoveStop}
-            onStartTrip={handleStartTripFromPanel}
+            onRemoveStop={(tripStopId) => runGatedAction(() => void removeTripStop({ tripStopId: tripStopId as Id<"tripStops"> }))}
+            onMoveStop={(tripStopId, direction) => runGatedAction(() => {
+              if (!effectiveTripData?.trip) {
+                return;
+              }
+
+              runOfflineCapableTripAction(createOfflineAction({
+                tripId: effectiveTripData.trip._id,
+                type: "moveStop",
+                tripStopId,
+                direction,
+              }));
+            })}
+            onStartTrip={(tripId) => runGatedAction(() => void startTrip({ tripId: tripId as Id<"trips"> }))}
             onRouteStop={handleRouteSpot}
-            onMarkDone={handleMarkDone}
-            onSkipStop={handleSkipStop}
-            onRouteModeChange={handlePanelRouteModeChange}
+            onMarkDone={(tripStopId) => runGatedAction(() => {
+              if (!effectiveTripData?.trip) {
+                return;
+              }
+
+              runOfflineCapableTripAction(createOfflineAction({
+                tripId: effectiveTripData.trip._id,
+                type: "markDone",
+                tripStopId,
+              }));
+            })}
+            onSkipStop={(tripStopId) => runGatedAction(() => {
+              if (!effectiveTripData?.trip) {
+                return;
+              }
+
+              runOfflineCapableTripAction(createOfflineAction({
+                tripId: effectiveTripData.trip._id,
+                type: "skip",
+                tripStopId,
+              }));
+            })}
+            onRouteModeChange={(tripId, mode) => runGatedAction(() => runOfflineCapableTripAction(createOfflineAction({
+              tripId,
+              type: "setRouteMode",
+              routeMode: mode,
+            })))}
           />
         </div>
       ) : null}
@@ -1028,13 +925,54 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
             selectedSpot={openSpot}
             routedSpotId={routedSpotId}
             onAddSpot={handleAddSpotToTrip}
-            onRemoveStop={handleRemoveStop}
-            onMoveStop={handleMoveStop}
-            onStartTrip={handleStartTripFromSheet}
-            onRouteStop={handleRouteStopFromSheet}
-            onMarkDone={handleMarkDone}
-            onSkipStop={handleSkipStop}
-            onRouteModeChange={handlePanelRouteModeChange}
+            onRemoveStop={(tripStopId) => runGatedAction(() => void removeTripStop({ tripStopId: tripStopId as Id<"tripStops"> }))}
+            onMoveStop={(tripStopId, direction) => runGatedAction(() => {
+              if (!effectiveTripData?.trip) {
+                return;
+              }
+
+              runOfflineCapableTripAction(createOfflineAction({
+                tripId: effectiveTripData.trip._id,
+                type: "moveStop",
+                tripStopId,
+                direction,
+              }));
+            })}
+            onStartTrip={(tripId) => runGatedAction(() => {
+              void startTrip({ tripId: tripId as Id<"trips"> });
+              setTripSheetOpen(false);
+            })}
+            onRouteStop={(spot) => {
+              handleRouteSpot(spot);
+              setTripSheetOpen(false);
+            }}
+            onMarkDone={(tripStopId) => runGatedAction(() => {
+              if (!effectiveTripData?.trip) {
+                return;
+              }
+
+              runOfflineCapableTripAction(createOfflineAction({
+                tripId: effectiveTripData.trip._id,
+                type: "markDone",
+                tripStopId,
+              }));
+            })}
+            onSkipStop={(tripStopId) => runGatedAction(() => {
+              if (!effectiveTripData?.trip) {
+                return;
+              }
+
+              runOfflineCapableTripAction(createOfflineAction({
+                tripId: effectiveTripData.trip._id,
+                type: "skip",
+                tripStopId,
+              }));
+            })}
+            onRouteModeChange={(tripId, mode) => runGatedAction(() => runOfflineCapableTripAction(createOfflineAction({
+              tripId,
+              type: "setRouteMode",
+              routeMode: mode,
+            })))}
           />
         </DrawerContent>
       </Drawer>
@@ -1046,19 +984,19 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
         isInTrip={openSpot ? hasTripSpot(tripStops, openSpot.id) : false}
         onClose={() => setOpenSpotId(null)}
         onSetNextStop={(spot) => {
-          const exploreSpot = spotById.get(spot.id);
+          const exploreSpot = allSpots.find((candidate) => candidate.id === spot.id);
           if (exploreSpot) {
             handleSetNextStop(exploreSpot);
           }
         }}
         onRoute={(spot) => {
-          const exploreSpot = spotById.get(spot.id);
+          const exploreSpot = allSpots.find((candidate) => candidate.id === spot.id);
           if (exploreSpot) {
             handleRouteSpot(exploreSpot);
           }
         }}
         onAddToTrip={(s) => {
-          const exploreSpot = spotById.get(s.id);
+          const exploreSpot = allSpots.find((candidate) => candidate.id === s.id);
           if (exploreSpot) {
             handleAddSpotToTrip(exploreSpot);
           }

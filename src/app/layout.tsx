@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
 import type { ReactNode } from "react";
+import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 import { PWARegistrar } from "@/components/PWARegistrar";
 import { Providers } from "./providers";
@@ -16,11 +17,6 @@ export const metadata: Metadata = {
   },
   formatDetection: {
     telephone: false,
-  },
-  other: {
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "black-translucent",
-    "mobile-web-app-capable": "yes",
   },
   icons: {
     icon: [

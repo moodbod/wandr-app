@@ -1,5 +1,4 @@
 import { X, Footprints, Car, Navigation, MapPin, Plus, Check } from "lucide-react";
-import { SpotImage } from "@/components/SpotImage";
 import type { Spot } from "@/data/destinations";
 
 type Props = {
@@ -24,7 +23,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
 
   return (
     <div
-      className="fixed inset-x-0 bottom-[calc(0px_-_env(safe-area-inset-bottom))] top-0 z-50 flex items-end justify-center p-0 animate-in fade-in duration-200 sm:inset-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center p-0 animate-in fade-in duration-200 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="spot-title"
@@ -35,17 +34,11 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
         aria-label="Close"
       />
 
-      <div className="relative flex max-h-[calc(92dvh+env(safe-area-inset-bottom))] w-full max-w-md flex-col overflow-hidden rounded-t-[1.75rem] border border-border bg-card shadow-2xl animate-in slide-in-from-bottom-6 duration-300 sm:max-h-[88dvh] sm:rounded-3xl sm:zoom-in-95">
+      <div className="relative flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[1.75rem] border border-border bg-card shadow-2xl animate-in slide-in-from-bottom-6 duration-300 sm:max-h-[88dvh] sm:rounded-3xl sm:zoom-in-95">
         <div className="absolute left-1/2 top-2 z-10 h-1.5 w-12 -translate-x-1/2 rounded-full bg-background/75 sm:hidden" />
         {/* Image */}
         <div className="relative aspect-[5/3] w-full shrink-0">
-          <SpotImage
-            src={spot.image}
-            alt={spot.name}
-            className="object-cover"
-            sizes="(min-width: 640px) 28rem, 100vw"
-            fill
-          />
+          <img src={spot.image} alt={spot.name} className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 via-transparent to-transparent" />
 
           <button
@@ -71,7 +64,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
         </div>
 
         {/* Body */}
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 pb-0 sm:p-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:p-5">
           {/* ETA row */}
           <div className="grid grid-cols-2 gap-2">
             <div className="flex items-center gap-2.5 rounded-2xl bg-secondary px-3 py-3">
@@ -103,7 +96,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
           </div>
 
           {/* Actions */}
-          <div className="sticky bottom-[calc(0px_-_env(safe-area-inset-bottom))] -mx-4 grid grid-cols-2 gap-2 border-t border-border bg-card/95 px-4 pb-[env(safe-area-inset-bottom)] pt-4 backdrop-blur-md sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
+          <div className="sticky bottom-0 -mx-4 -mb-[calc(env(safe-area-inset-bottom)+1rem)] grid grid-cols-2 gap-2 border-t border-border bg-card/95 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] backdrop-blur-md sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
             <button
               onClick={() => onAddToTrip(spot)}
               disabled={isInTrip}
