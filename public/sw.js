@@ -5,15 +5,18 @@ const APP_SHELL = [
   "/manifest.webmanifest",
   "/wandr-favicon.png",
   "/icons/wandr-icon.png",
+  "/api/catalog",
 ];
 
 const MAPBOX_ORIGINS = [
   "https://api.mapbox.com",
   "https://events.mapbox.com",
+  "https://a.tiles.mapbox.com",
+  "https://b.tiles.mapbox.com",
 ];
 
 // Strategies
-function cacheFirst(request) {
+function cacheFirst(request, cacheName = CACHE_NAME) {
   return caches.match(request).then((cached) => {
     if (cached) {
       return cached;
@@ -22,7 +25,7 @@ function cacheFirst(request) {
     return fetch(request).then((response) => {
       if (response.ok) {
         const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+        caches.open(cacheName).then((cache) => cache.put(request, responseClone));
       }
 
       return response;
@@ -30,8 +33,8 @@ function cacheFirst(request) {
   });
 }
 
-function staleWhileRevalidate(request) {
-  return caches.open(CACHE_NAME).then((cache) =>
+function staleWhileRevalidate(request, cacheName = CACHE_NAME) {
+  return caches.open(cacheName).then((cache) =>
     cache.match(request).then((cached) => {
       const fresh = fetch(request)
         .then((response) => {
@@ -50,19 +53,7 @@ function staleWhileRevalidate(request) {
 
 // Mapbox specific caching (Tiles, Glyphs, Sprites)
 function cacheMapbox(request) {
-  return caches.open("wandr-mapbox").then((cache) =>
-    cache.match(request).then((cached) => {
-      if (cached) {
-        return cached;
-      }
-      return fetch(request).then((response) => {
-        if (response.ok) {
-          cache.put(request, response.clone());
-        }
-        return response;
-      });
-    }),
-  );
+  return cacheFirst(request, "wandr-mapbox");
 }
 
 self.addEventListener("install", (event) => {
@@ -81,7 +72,7 @@ self.addEventListener("activate", (event) => {
       .then((cacheNames) =>
         Promise.all(
           cacheNames
-            .filter((cacheName) => cacheName !== CACHE_NAME && cacheName !== "wandr-mapbox")
+            .filter((cacheName) => cacheName !== CACHE_NAME && cacheName !== "wandr-mapbox" && cacheName !== "wandr-directions")
             .map((cacheName) => caches.delete(cacheName)),
         ),
       )
@@ -98,16 +89,21 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // Mapbox Assets (Tiles, Styles, Fonts)
-  if (MAPBOX_ORIGINS.includes(url.origin)) {
+  // Mapbox Assets (Tiles, Styles, Fonts, Sprites)
+  if (MAPBOX_ORIGINS.includes(url.origin) || url.hostname.endsWith(".tiles.mapbox.com")) {
     // Only cache static assets, avoid caching telemetry/events
-    if (url.pathname.includes("/v4/") || url.pathname.includes("/styles/v1/") || url.pathname.includes("/fonts/v1/")) {
+    if (
+      url.pathname.includes("/v4/") ||
+      url.pathname.includes("/styles/v1/") ||
+      url.pathname.includes("/fonts/v1/") ||
+      url.pathname.includes("/sprites/")
+    ) {
       event.respondWith(cacheMapbox(request));
       return;
     }
-    // Directions API - staleWhileRevalidate is better for dynamic routes
+    // Directions API — road routes don't change, cache-first for reliable offline
     if (url.pathname.includes("/directions/v5/")) {
-      event.respondWith(staleWhileRevalidate(request));
+      event.respondWith(cacheFirst(request, "wandr-directions"));
       return;
     }
   }

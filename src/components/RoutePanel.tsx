@@ -7,6 +7,7 @@ type Props = {
   mode: "walk" | "drive";
   summary: RouteSummary | null;
   isActive: boolean;
+  isOnline: boolean;
   onModeChange: (m: "walk" | "drive") => void;
   onClose: () => void;
   onStart: () => void;
@@ -24,7 +25,7 @@ function formatDistance(meters: number) {
   return `${Math.max(1, Math.round(meters / 10) * 10)} m`;
 }
 
-const RoutePanel = ({ spot, mode, summary, isActive, onModeChange, onClose, onStart }: Props) => {
+const RoutePanel = ({ spot, mode, summary, isActive, isOnline, onModeChange, onClose, onStart }: Props) => {
   const eta = summary ? formatMinutes(summary.durationSeconds) : null;
   const distance = summary ? formatDistance(summary.distanceMeters) : "Calculating route";
 
@@ -63,6 +64,7 @@ const RoutePanel = ({ spot, mode, summary, isActive, onModeChange, onClose, onSt
         <div className="ml-auto text-right">
           <div className="text-lg font-semibold tabular-nums leading-none">{eta ? `${eta} min` : "--"}</div>
           <div className="mt-0.5 text-[11px] text-muted-foreground">
+            {!isOnline && <span className="mr-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">Offline</span>}
             {distance}
             {summary ? ` · fastest ${mode}` : ""}
           </div>

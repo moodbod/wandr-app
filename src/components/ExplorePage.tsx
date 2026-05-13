@@ -11,6 +11,10 @@ import { AuthDialog } from "@/components/AuthDialog";
 import { AuthStatus } from "@/components/AuthStatus";
 import type { RouteSummary } from "@/components/MapboxStreetsMap";
 import { OnboardingDialog } from "@/components/OnboardingDialog";
+import { MapWarmup } from "@/components/MapWarmup";
+import { MapSkeleton } from "@/components/MapSkeleton";
+import { ExploreLoadingSkeleton } from "@/components/ExploreLoadingSkeleton";
+import { useUserLocation } from "@/hooks/useUserLocation";
 import RoutePanel from "@/components/RoutePanel";
 import { SpotImage } from "@/components/SpotImage";
 import SpotModal from "@/components/SpotModal";
@@ -21,8 +25,10 @@ import {
   applyOfflineAction,
   createOfflineAction,
   readActiveTripSnapshot,
+  readCatalogSnapshot,
   readOfflineTripQueue,
   saveActiveTripSnapshot,
+  saveCatalogSnapshot,
   saveOfflineTripQueue,
   type ActiveTripSnapshot,
   type OfflineTripAction,
@@ -58,11 +64,7 @@ const namibiaMap = {
 
 const MapboxStreetsMap = dynamic(() => import("@/components/MapboxStreetsMap"), {
   ssr: false,
-  loading: () => (
-    <div className="absolute inset-0 grid place-items-center bg-secondary text-sm font-medium text-muted-foreground">
-      Loading map...
-    </div>
-  ),
+  loading: () => <MapSkeleton />,
 });
 
 function isTripData(value: unknown): value is PersistedTripData {
@@ -102,8 +104,18 @@ function snapshotIdentity(snapshot: ActiveTripSnapshot | null) {
 }
 
 const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePageProps) => {
+  const { position: userPosition } = useUserLocation();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const catalogData = useQuery(api.content.listPublic, {});
+  const remoteCatalogData = useQuery(api.content.listPublic, {});
+  const [catalogData, setCatalogData] = useState<unknown>(() => readCatalogSnapshot());
+
+  useEffect(() => {
+    if (remoteCatalogData !== undefined) {
+      setCatalogData(remoteCatalogData);
+      saveCatalogSnapshot(remoteCatalogData);
+    }
+  }, [remoteCatalogData]);
+
   const destinations = useMemo(() => (isDestinationList(catalogData) ? catalogData : []), [catalogData]);
   const allSpots = useMemo<ExploreSpot[]>(
     () =>
@@ -570,13 +582,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
   }, []);
 
   if (catalogData === undefined) {
-    return (
-      <main className="grid min-h-dvh place-items-center bg-background p-6 text-foreground">
-        <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
-          Loading places...
-        </div>
-      </main>
-    );
+    return <ExploreLoadingSkeleton />;
   }
 
   if (allSpots.length === 0) {
@@ -604,9 +610,17 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
           routeStops={routeStopsForMap}
           routeOpen={routeOpen}
           routeMode={routeMode}
+          userPosition={userPosition}
           onOpenSpot={handleOpenSpot}
           onRouteSummaryChange={handleRouteSummaryChange}
         />
+
+        {/* Offline indicator */}
+        {!isOnline && (
+          <div className="wandr-offline-badge">
+            Offline
+          </div>
+        )}
       </div>
 
       {/* Top */}
@@ -769,6 +783,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
                 mode={routeMode}
                 summary={routeSummary}
                 isActive={effectiveTripData?.trip.status === "active"}
+                isOnline={isOnline}
                 onModeChange={handleSetRouteMode}
                 onClose={() => setRouteOpen(false)}
                 onStart={() => handleStartRoute(nextStop)}
@@ -1029,6 +1044,8 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
         onSubmitted={() => setAuthOpen(false)}
       />
       <OnboardingDialog open={onboardingOpen} onComplete={handleOnboardingComplete} />
+      {/* Map Pre-warmer for offline caching */}
+      <MapWarmup destinations={destinations} accessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN} />
     </main>
   );
 };

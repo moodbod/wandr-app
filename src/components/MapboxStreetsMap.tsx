@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl, {
   LngLatBounds,
-  type GeolocateControl,
   type GeoJSONSource,
   type Map as MapboxMap,
   type Marker,
 } from "mapbox-gl";
+import type { UserPosition } from "@/hooks/useUserLocation";
 import type { Spot } from "@/data/destinations";
 
 type Props = {
@@ -22,6 +22,7 @@ type Props = {
   routeStops: Spot[];
   routeOpen: boolean;
   routeMode: "walk" | "drive";
+  userPosition: UserPosition | null;
   onOpenSpot: (spotId: string) => void;
   onRouteSummaryChange?: (summary: RouteSummary | null) => void;
 };
@@ -29,14 +30,14 @@ type Props = {
 const routeSourceId = "wandr-route";
 const routeLayerId = "wandr-route-line";
 const routeCasingLayerId = "wandr-route-line-casing";
+const userSourceId = "wandr-user-position";
+const userCircleLayerId = "wandr-user-circle";
+const userDotLayerId = "wandr-user-dot";
+const userAccuracyLayerId = "wandr-user-accuracy";
 type LngLat = [number, number];
 export type RouteSummary = {
   distanceMeters: number;
   durationSeconds: number;
-};
-type CurrentPosition = {
-  lngLat: LngLat;
-  accuracy: number;
 };
 type MarkerHandle = {
   id: string;
@@ -75,18 +76,21 @@ const MapboxStreetsMap = ({
   routeStops,
   routeOpen,
   routeMode,
+  userPosition,
   onOpenSpot,
   onRouteSummaryChange,
 }: Props) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
-  const geolocateControlRef = useRef<GeolocateControl | null>(null);
   const markersRef = useRef<MarkerHandle[]>([]);
   const [ready, setReady] = useState(false);
-  const [currentPosition, setCurrentPosition] = useState<CurrentPosition | null>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<LngLat[]>([]);
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
+  // Track whether we've done the initial center so we don't fight the user
+  const didInitialCenterRef = useRef(false);
+
+  // --- Map initialization ---
   useEffect(() => {
     if (!containerRef.current || !accessToken || mapRef.current) {
       return;
@@ -95,43 +99,67 @@ const MapboxStreetsMap = ({
     const container = containerRef.current;
     mapboxgl.accessToken = accessToken;
 
+    // Use persisted position as initial center if available
+    const initialCenter = userPosition?.lngLat ?? mapConfig.center;
+    const initialZoom = userPosition ? 14 : mapConfig.zoom;
+
     const map = new mapboxgl.Map({
       container,
       style: "mapbox://styles/mapbox/streets-v12",
-      center: mapConfig.center,
-      zoom: mapConfig.zoom,
+      center: initialCenter,
+      zoom: initialZoom,
       attributionControl: false,
       pitchWithRotate: false,
     });
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
-    const geolocateControl = new mapboxgl.GeolocateControl({
-      fitBoundsOptions: { maxZoom: 16 },
-      positionOptions: {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 20000,
-      },
-      showAccuracyCircle: true,
-      showUserHeading: true,
-      showUserLocation: true,
-      trackUserLocation: true,
-    });
-    geolocateControl.on("geolocate", ({ coords }) => {
-      setCurrentPosition({
-        lngLat: [coords.longitude, coords.latitude],
-        accuracy: coords.accuracy,
-      });
-    });
-    geolocateControl.on("error", () => {
-      setCurrentPosition(null);
-    });
-    map.addControl(geolocateControl, "bottom-right");
     map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-left");
-    geolocateControlRef.current = geolocateControl;
+
     map.on("load", () => {
+      // Add user position source + layers
+      map.addSource(userSourceId, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      // Accuracy circle (subtle blue fill)
+      map.addLayer({
+        id: userAccuracyLayerId,
+        type: "circle",
+        source: userSourceId,
+        paint: {
+          "circle-radius": ["get", "accuracyRadius"],
+          "circle-color": "hsl(210, 100%, 56%)",
+          "circle-opacity": 0.1,
+          "circle-stroke-width": 0,
+        },
+      });
+
+      // Outer glow
+      map.addLayer({
+        id: userCircleLayerId,
+        type: "circle",
+        source: userSourceId,
+        paint: {
+          "circle-radius": 11,
+          "circle-color": "hsl(0, 0%, 100%)",
+          "circle-opacity": 1,
+        },
+      });
+
+      // Inner blue dot
+      map.addLayer({
+        id: userDotLayerId,
+        type: "circle",
+        source: userSourceId,
+        paint: {
+          "circle-radius": 7,
+          "circle-color": "hsl(210, 100%, 56%)",
+          "circle-opacity": 1,
+        },
+      });
+
       setReady(true);
-      geolocateControl.trigger();
     });
     mapRef.current = map;
 
@@ -156,38 +184,67 @@ const MapboxStreetsMap = ({
         window.cancelAnimationFrame(resizeFrame);
       }
       resizeObserver?.disconnect();
-      geolocateControlRef.current = null;
       markersRef.current.forEach(({ marker }) => marker.remove());
       markersRef.current = [];
       map.remove();
       mapRef.current = null;
     };
-  }, [accessToken, mapConfig.center, mapConfig.zoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken]);
 
+  // --- Update user position on the map ---
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) {
       return;
     }
 
-    if (currentPosition) {
+    const source = map.getSource(userSourceId) as GeoJSONSource | undefined;
+    if (!source) {
       return;
     }
 
-    map.flyTo({
-      center: mapConfig.center,
-      zoom: mapConfig.zoom,
-      duration: 700,
-      essential: true,
-    });
-  }, [currentPosition, mapConfig, ready]);
+    if (!userPosition) {
+      source.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
 
+    // Convert accuracy (meters) to approximate pixel radius at current zoom
+    const metersPerPixel = (156543.03392 * Math.cos((userPosition.lngLat[1] * Math.PI) / 180)) / Math.pow(2, map.getZoom());
+    const accuracyRadius = Math.min(userPosition.accuracy / metersPerPixel, 200);
+
+    source.setData({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { accuracyRadius },
+          geometry: {
+            type: "Point",
+            coordinates: userPosition.lngLat,
+          },
+        },
+      ],
+    });
+  }, [ready, userPosition]);
+
+  // --- Initial camera: fit to spots if no user position ---
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !ready || currentPosition || spots.length === 0) {
+    if (!map || !ready || didInitialCenterRef.current) {
       return;
     }
 
+    if (userPosition) {
+      didInitialCenterRef.current = true;
+      return;
+    }
+
+    if (spots.length === 0) {
+      return;
+    }
+
+    didInitialCenterRef.current = true;
     const bounds = new LngLatBounds();
     spots.forEach((spot) => bounds.extend(spot.lngLat));
     map.fitBounds(bounds, {
@@ -196,8 +253,23 @@ const MapboxStreetsMap = ({
       duration: 700,
       essential: true,
     });
-  }, [currentPosition, ready, spots]);
+  }, [ready, spots, userPosition]);
 
+  // --- Follow mode: recenter on user when routing is active ---
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !routeOpen || !userPosition) {
+      return;
+    }
+
+    map.easeTo({
+      center: userPosition.lngLat,
+      duration: 600,
+      essential: false,
+    });
+  }, [ready, routeOpen, userPosition]);
+
+  // --- Spot markers ---
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) {
@@ -251,6 +323,7 @@ const MapboxStreetsMap = ({
     });
   }, [onOpenSpot, ready, spots]);
 
+  // --- Highlighted spot ---
   useEffect(() => {
     if (!ready) {
       return;
@@ -261,6 +334,7 @@ const MapboxStreetsMap = ({
     });
   }, [highlightedSpotId, ready, spots]);
 
+  // --- Directions fetch ---
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) {
@@ -268,7 +342,7 @@ const MapboxStreetsMap = ({
     }
 
     const routeTargets = routeOpen ? (routeStops.length > 0 ? routeStops : nextStop ? [nextStop] : []) : [];
-    const origin = currentPosition?.lngLat ?? mapConfig.center;
+    const origin = userPosition?.lngLat ?? mapConfig.center;
     const coordinates = [origin, ...routeTargets.map((spot) => spot.lngLat)];
     const abortController = new AbortController();
 
@@ -323,7 +397,7 @@ const MapboxStreetsMap = ({
     return () => abortController.abort();
   }, [
     accessToken,
-    currentPosition?.lngLat,
+    userPosition?.lngLat,
     mapConfig.center,
     nextStop,
     ready,
@@ -333,6 +407,7 @@ const MapboxStreetsMap = ({
     onRouteSummaryChange,
   ]);
 
+  // --- Route line rendering ---
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) {
@@ -384,7 +459,7 @@ const MapboxStreetsMap = ({
           "line-join": "round",
         },
         paint: {
-          "line-color": "hsl(14, 80%, 56%)",
+          "line-color": "#9fe870",
           "line-width": routeMode === "drive" ? 4 : 3,
         },
       });

@@ -66,6 +66,7 @@ export type ActiveTripSnapshot = PersistedTripData & {
 
 const snapshotKey = "wandr.activeTrip.snapshot.v1";
 const queueKey = "wandr.activeTrip.offlineQueue.v1";
+const catalogKey = "wandr.catalog.snapshot.v1";
 
 function isBrowser() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -114,6 +115,14 @@ export function readOfflineTripQueue() {
 
 export function saveOfflineTripQueue(queue: OfflineTripAction[]) {
   writeJson(queueKey, queue);
+}
+
+export function readCatalogSnapshot<T>() {
+  return readJson<T>(catalogKey);
+}
+
+export function saveCatalogSnapshot<T>(catalog: T) {
+  writeJson(catalogKey, catalog);
 }
 
 export function createOfflineAction(action: NewOfflineTripAction): OfflineTripAction {
