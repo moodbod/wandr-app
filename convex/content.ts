@@ -161,32 +161,42 @@ function normalizeSpotInput(args: SpotInput) {
 export const listPublic = query({
   args: {},
   handler: async (ctx) => {
-    const destinations = await ctx.db
-      .query("destinations")
-      .withIndex("by_status", (q) => q.eq("status", "active"))
-      .take(100);
+    const [destinations, allSpots] = await Promise.all([
+      ctx.db
+        .query("destinations")
+        .withIndex("by_status", (q) => q.eq("status", "active"))
+        .take(100),
+      ctx.db
+        .query("spots")
+        .withIndex("by_status", (q) => q.eq("status", "active"))
+        .take(1000),
+    ]);
 
-    const payload = await Promise.all(
-      destinations.map(async (destination) => {
+    // Group spots by destinationId in memory instead of N+1 queries
+    const spotsByDestination = new Map<Id<"destinations">, Doc<"spots">[]>();
+    for (const spot of allSpots) {
+      let group = spotsByDestination.get(spot.destinationId);
+      if (!group) {
+        group = [];
+        spotsByDestination.set(spot.destinationId, group);
+      }
+      group.push(spot);
+    }
+
+    return destinations
+      .map((destination) => {
         const destinationPayload = getDestinationPayload(destination);
-
         if (!destinationPayload) {
           return null;
         }
 
-        const spots = await ctx.db
-          .query("spots")
-          .withIndex("by_destinationId_and_status", (q) => q.eq("destinationId", destination._id).eq("status", "active"))
-          .take(200);
-
+        const spots = spotsByDestination.get(destination._id) ?? [];
         return {
           ...destinationPayload,
           spots: spots.map(getSpotPayload).filter((spot) => spot !== null),
         };
-      }),
-    );
-
-    return payload.filter((destination) => destination !== null);
+      })
+      .filter((destination) => destination !== null);
   },
 });
 

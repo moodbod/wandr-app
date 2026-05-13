@@ -581,7 +581,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
     setRouteSummary(summary);
   }, []);
 
-  if (catalogData === undefined) {
+  if (catalogData === undefined || (catalogData === null && remoteCatalogData === undefined)) {
     return <ExploreLoadingSkeleton />;
   }
 

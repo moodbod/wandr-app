@@ -269,17 +269,40 @@ const MapboxStreetsMap = ({
     });
   }, [ready, routeOpen, userPosition]);
 
-  // --- Spot markers ---
+  // --- Stable callback ref for marker click handlers ---
+  const onOpenSpotRef = useRef(onOpenSpot);
+  useEffect(() => {
+    onOpenSpotRef.current = onOpenSpot;
+  }, [onOpenSpot]);
+
+  // --- Spot markers (diff-based) ---
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) {
       return;
     }
 
-    markersRef.current.forEach(({ marker }) => marker.remove());
-    markersRef.current = [];
+    const prevById = new Map(markersRef.current.map((h) => [h.id, h]));
+    const nextIds = new Set(spots.map((s) => s.id));
 
+    // Remove markers no longer in the list
+    for (const [id, handle] of prevById) {
+      if (!nextIds.has(id)) {
+        handle.marker.remove();
+        prevById.delete(id);
+      }
+    }
+
+    // Start with kept markers
+    const kept = Array.from(prevById.values());
+    const existingIds = new Set(kept.map((h) => h.id));
+
+    // Add only new markers
     spots.forEach((spot) => {
+      if (existingIds.has(spot.id)) {
+        return;
+      }
+
       const button = document.createElement("button");
       button.type = "button";
       button.className = [
@@ -287,7 +310,7 @@ const MapboxStreetsMap = ({
         `wandr-photo-marker--${markerTone(spot)}`,
       ].join(" ");
       button.ariaLabel = `Open details for ${spot.name}`;
-      button.addEventListener("click", () => onOpenSpot(spot.id));
+      button.addEventListener("click", () => onOpenSpotRef.current(spot.id));
 
       const visual = document.createElement("span");
       visual.className = "wandr-photo-marker__visual";
@@ -319,9 +342,11 @@ const MapboxStreetsMap = ({
         .setLngLat(spot.lngLat)
         .addTo(map);
 
-      markersRef.current.push({ id: spot.id, element: button, marker });
+      kept.push({ id: spot.id, element: button, marker });
     });
-  }, [onOpenSpot, ready, spots]);
+
+    markersRef.current = kept;
+  }, [ready, spots]);
 
   // --- Highlighted spot ---
   useEffect(() => {

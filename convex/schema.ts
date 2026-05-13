@@ -61,7 +61,8 @@ export default defineSchema({
   })
     .index("by_destination", ["destinationId"])
     .index("by_destinationId_and_status", ["destinationId", "status"])
-    .index("by_slug", ["slug"]),
+    .index("by_slug", ["slug"])
+    .index("by_status", ["status"]),
   trips: defineTable({
     userId: v.id("users"),
     destinationId: v.string(),
