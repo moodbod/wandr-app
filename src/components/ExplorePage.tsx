@@ -13,6 +13,7 @@ import type { RouteSummary } from "@/components/MapboxStreetsMap";
 import { OnboardingDialog } from "@/components/OnboardingDialog";
 import { MapWarmup } from "@/components/MapWarmup";
 import { MapSkeleton } from "@/components/MapSkeleton";
+import { BottomNav } from "@/components/BottomNav";
 import { ExploreLoadingSkeleton } from "@/components/ExploreLoadingSkeleton";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import RoutePanel from "@/components/RoutePanel";
@@ -774,9 +775,9 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
           showDesktopTripPanel ? "lg:left-96" : "",
         ].join(" ")}
       >
-        <div className="mx-auto flex w-[calc(100%-1rem)] max-w-[24.5rem] flex-col sm:w-full sm:max-w-2xl sm:gap-2.5">
+        <div className="mx-auto flex w-full flex-col sm:max-w-2xl sm:gap-2.5">
           {nextStop && routeOpen ? (
-            <div className="wandr-bottom-surface overflow-hidden rounded-t-[2rem] bg-card px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
+            <div className="wandr-bottom-surface overflow-hidden rounded-t-[2rem] bg-card px-2 pb-[calc(4rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_30px_rgb(0,0,0,0.08)] sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
               <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
               <RoutePanel
                 spot={nextStop}
@@ -790,7 +791,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
               />
             </div>
           ) : nextStop ? (
-            <div className="wandr-bottom-surface overflow-hidden rounded-t-[2rem] bg-card px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 shadow-2xl shadow-foreground/20 sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
+            <div className="wandr-bottom-surface overflow-hidden rounded-t-[2rem] bg-card px-2 pb-[calc(4rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_30px_rgb(0,0,0,0.08)] sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
               <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
               <div className="mb-4 flex items-center justify-between gap-3 sm:hidden">
                 <div className="min-w-0">
@@ -813,58 +814,56 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
               </div>
 
               <div
-                className="wandr-recommendation-card group overflow-hidden rounded-[1.45rem] bg-foreground text-left text-background shadow-xl shadow-foreground/15 transition-transform active:scale-[0.99] sm:rounded-[1.35rem] sm:border sm:border-border sm:bg-card sm:text-foreground sm:shadow-2xl sm:shadow-foreground/15 sm:hover:border-foreground/20"
+                className="wandr-recommendation-card group overflow-hidden rounded-[2rem] bg-foreground text-left text-background transition-transform active:scale-[0.99] sm:rounded-[1.35rem] sm:border sm:border-border sm:bg-card sm:text-foreground sm:hover:border-foreground/20"
               >
-                <div className="relative min-h-[7.6rem] sm:grid sm:min-h-[10.5rem] sm:grid-cols-[8rem_1fr]">
+                <div className="relative min-h-[11rem] sm:grid sm:min-h-[10.5rem] sm:grid-cols-[8rem_1fr]">
                   <div className="absolute inset-0 sm:relative sm:inset-auto sm:min-h-[10.5rem]">
                     <SpotImage
                       src={nextStop.image}
                       alt={nextStop.name}
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="object-cover transition-transform duration-700 group-hover:scale-105"
                       sizes="(min-width: 640px) 8rem, 100vw"
                       fill
                       priority
                     />
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent sm:hidden" />
-                  <div className="relative flex min-h-[7.6rem] min-w-0 flex-col justify-end gap-1.5 p-4 sm:min-h-0 sm:justify-start sm:gap-2 sm:p-4">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent sm:hidden" />
+                  <div className="relative flex min-h-[11rem] min-w-0 flex-col justify-end p-4 sm:min-h-0 sm:justify-start sm:gap-2 sm:p-4">
+                    
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/85 sm:text-[11px] sm:font-medium sm:tracking-wider sm:text-accent">
-                          {isInactiveRecommendation ? "You might like this" : stopCardLabel}
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80 sm:text-[11px] sm:font-medium sm:tracking-wider sm:text-accent">
+                          {isInactiveRecommendation ? "Featured" : stopCardLabel}
                         </div>
-                        <h2 className="mt-0.5 line-clamp-2 text-base font-semibold leading-tight text-white sm:text-lg sm:text-foreground">{nextStop.name}</h2>
-                        {isInactiveRecommendation ? (
-                          <div className="mt-1 hidden text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:block">
-                            {nextStop.tag}
-                          </div>
-                        ) : null}
+                        <h2 className="mt-1 line-clamp-2 text-xl font-bold leading-tight text-white sm:text-lg sm:text-foreground">{nextStop.name}</h2>
                       </div>
-                      <div className="flex h-10 shrink-0 items-center gap-1 rounded-full bg-white/95 px-3 text-foreground shadow-sm sm:h-auto sm:flex-col sm:items-end sm:gap-0 sm:bg-transparent sm:px-0 sm:py-0 sm:text-right sm:shadow-none">
-                        <span className="text-xs font-bold leading-none tabular-nums sm:text-sm sm:font-semibold">
+                      
+                      {/* Walk/Drive Time Pill */}
+                      <div className="flex shrink-0 items-center gap-1 rounded-full bg-black/30 backdrop-blur-md px-3 py-1.5 text-white sm:flex-col sm:items-end sm:gap-0 sm:bg-transparent sm:px-0 sm:py-0 sm:text-foreground sm:shadow-none">
+                        <span className="text-sm font-bold leading-none tabular-nums sm:text-sm sm:font-semibold">
                           {routeMode === "drive" ? nextStop.driveMin : nextStop.walkMin} min
                         </span>
-                        <span className="text-[10px] leading-none text-muted-foreground sm:mt-0.5 sm:text-[11px]">{routeMode}</span>
+                        <span className="text-[11px] leading-none text-white/80 sm:mt-0.5 sm:text-[11px] sm:text-muted-foreground">{routeMode}</span>
                       </div>
                     </div>
 
-                    <p className="line-clamp-1 text-xs leading-relaxed text-white/85 sm:line-clamp-3 sm:text-sm sm:text-muted-foreground">{nextStop.tip}</p>
+                    <p className="mt-1 line-clamp-1 text-sm font-medium text-white/90 sm:line-clamp-3 sm:text-sm sm:text-muted-foreground">{nextStop.tip}</p>
 
                     {isInactiveRecommendation ? (
-                      <div className="mt-1 flex flex-wrap gap-2 sm:mt-auto">
+                      <div className="mt-4 flex flex-wrap gap-2 sm:mt-auto">
                         <button
                           type="button"
                           onClick={() => setOpenSpotId(nextStop.id)}
-                          className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-white/90 sm:min-h-9 sm:bg-foreground sm:px-3.5 sm:py-2 sm:font-medium sm:text-background sm:hover:bg-foreground/90"
+                          className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-md px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/30 sm:bg-foreground sm:px-3.5 sm:text-background sm:hover:bg-foreground/90 sm:backdrop-blur-none"
                         >
-                          <Eye className="size-3.5" /> View spot
+                          <Eye className="size-4" /> View spot
                         </button>
                         <button
                           type="button"
                           onClick={() => runGatedAction(() => setRouteOpen(true))}
-                          className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-white/70 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20 sm:min-h-9 sm:border-border sm:bg-transparent sm:px-3.5 sm:py-2 sm:font-medium sm:text-foreground sm:hover:bg-secondary"
+                          className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-black/40 sm:border sm:border-border sm:bg-transparent sm:px-3.5 sm:text-foreground sm:hover:bg-secondary sm:backdrop-blur-none"
                         >
-                          <Navigation className="size-3.5" /> Route
+                          <Navigation className="size-4" /> Route
                         </button>
                       </div>
                     ) : (
@@ -878,9 +877,9 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
 
                           runGatedAction(() => setRouteOpen(true));
                         }}
-                        className="mt-1 inline-flex min-h-8 self-start items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-white/90 sm:mt-auto sm:min-h-9 sm:bg-foreground sm:px-3.5 sm:py-2 sm:font-medium sm:text-background sm:hover:bg-foreground/90"
+                        className="mt-4 inline-flex min-h-9 self-start items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-md px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/30 sm:mt-auto sm:bg-foreground sm:px-3.5 sm:text-background sm:hover:bg-foreground/90 sm:backdrop-blur-none"
                       >
-                        <Navigation className="size-3.5" /> {stopActionLabel}
+                        <Navigation className="size-4" /> {stopActionLabel}
                       </button>
                     )}
                   </div>
@@ -888,7 +887,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
               </div>
             </div>
           ) : (
-            <div className="wandr-bottom-surface rounded-t-[2rem] border border-border bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-sm text-muted-foreground shadow-2xl shadow-foreground/15 sm:rounded-2xl sm:pb-4 sm:shadow-sm">
+            <div className="wandr-bottom-surface rounded-t-[2rem] border border-border bg-card p-4 pb-[calc(4rem+env(safe-area-inset-bottom))] text-center text-sm text-muted-foreground shadow-[0_-8px_30px_rgb(0,0,0,0.08)] sm:rounded-2xl sm:shadow-sm">
               No Namibia spots in this category yet.
             </div>
           )}
@@ -1046,6 +1045,8 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
       <OnboardingDialog open={onboardingOpen} onComplete={handleOnboardingComplete} />
       {/* Map Pre-warmer for offline caching */}
       <MapWarmup destinations={destinations} accessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN} />
+      {/* Bottom navigation */}
+      <BottomNav onTripsClick={() => runGatedAction(() => setTripSheetOpen(true))} />
     </main>
   );
 };

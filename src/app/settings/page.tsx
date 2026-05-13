@@ -20,6 +20,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { api } from "../../../convex/_generated/api";
 import { AuthDialog } from "@/components/AuthDialog";
+import { BottomNav } from "@/components/BottomNav";
 import type { Destination } from "@/data/destinations";
 
 const preferenceOptions = [
@@ -144,7 +145,7 @@ export default function SettingsPage() {
           </Link>
         </header>
 
-        <div className="flex flex-1 flex-col gap-8 px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pt-5">
+        <div className="flex flex-1 flex-col gap-8 px-4 pb-[max(5rem,calc(3rem+env(safe-area-inset-bottom)+2rem))] pt-3 sm:px-6 sm:pt-5 lg:pb-[max(2rem,env(safe-area-inset-bottom))]">
           <section>
             <h2 className="text-3xl font-black leading-none tracking-[-0.04em]">Your Wandr</h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
@@ -411,6 +412,7 @@ export default function SettingsPage() {
         onClose={() => setAuthOpen(false)}
         onSubmitted={() => setAuthOpen(false)}
       />
+      <BottomNav />
     </main>
   );
 }

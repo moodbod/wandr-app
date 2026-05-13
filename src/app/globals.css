@@ -240,14 +240,59 @@
       transform: translateX(-50%) translateY(0);
     }
   }
+
+  /* ── Bottom navigation bar ── */
+
+  .wandr-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    background: hsl(var(--card) / 0.85);
+    border-top: 1px solid hsl(var(--border) / 0.3);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* Inside the fixed map shell, switch to absolute */
+  .wandr-native-map-shell .wandr-bottom-nav {
+    position: absolute;
+  }
+
+  .wandr-bottom-nav__tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 0.8rem 0;
+    color: hsl(var(--muted-foreground));
+    text-decoration: none;
+    transition: color 180ms ease;
+    -webkit-tap-highlight-color: transparent;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .wandr-bottom-nav__tab--active {
+    color: hsl(var(--foreground));
+  }
+  
+  .wandr-bottom-nav__tab--active svg {
+    stroke-width: 2.5px;
+  }
 }
 
 /*
- * DO NOT CHANGE — PWA standalone mode fix.
- * The white background matches the bottom sheet card (bg-card) so the
- * iPhone home-indicator area blends seamlessly with the UI.
- * Changing this color will re-introduce a visible strip at the bottom
- * of the screen on iOS devices with Face ID.
+ * PWA standalone mode — the white background matches the bottom sheet card (bg-card)
+ * so the iPhone home-indicator area blends seamlessly with the UI.
  */
 @media (display-mode: standalone) {
   html,
