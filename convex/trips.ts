@@ -4,7 +4,7 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import type { Doc, Id } from "./_generated/dataModel";
 
 const routeMode = v.union(v.literal("walk"), v.literal("drive"));
-const exploreDestinationId = "namibia";
+const exploreDestinationId = "catalog";
 const offlineAction = v.union(
   v.object({
     type: v.literal("markDone"),

@@ -3,7 +3,32 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ExplorePage from "@/components/ExplorePage";
-import { destinations } from "@/data/destinations";
+
+const mockDestinations = [
+  {
+    id: "windhoek",
+    city: "Windhoek",
+    country: "Test Country",
+    flag: "🇳🇦",
+    map: { center: [17.0832, -22.5597] as [number, number], zoom: 12.6 },
+    you: { top: "52%", left: "48%", lngLat: [17.0832, -22.5597] as [number, number] },
+    spots: [
+      { id: "spot-1", name: "Test Spot 1", category: "eat", top: "38%", left: "62%", lngLat: [17.0922, -22.5474] as [number, number], walkMin: 8, driveMin: 4, tip: "Tip 1", tag: "Tag 1", image: "/test.jpg" },
+      { id: "spot-2", name: "Test Spot 2", category: "see", top: "44%", left: "50%", lngLat: [17.0877, -22.5675] as [number, number], walkMin: 12, driveMin: 5, tip: "Tip 2", tag: "Tag 2", image: "/test.jpg" },
+    ],
+  },
+  {
+    id: "swakopmund",
+    city: "Swakopmund",
+    country: "Test Country",
+    flag: "🇳🇦",
+    map: { center: [14.5266, -22.6784] as [number, number], zoom: 13.2 },
+    you: { top: "52%", left: "48%", lngLat: [14.5266, -22.6784] as [number, number] },
+    spots: [
+      { id: "spot-3", name: "Test Spot 3", category: "eat", top: "61%", left: "49%", lngLat: [14.5247, -22.6821] as [number, number], walkMin: 7, driveMin: 3, tip: "Tip 3", tag: "Tag 3", image: "/test.jpg" },
+    ],
+  },
+];
 
 const testState = vi.hoisted(() => ({
   tripData: null as
@@ -93,7 +118,7 @@ vi.mock("convex/react", () => ({
     }
 
     if (functionName === "content:listPublic") {
-      return destinations;
+      return mockDestinations;
     }
 
     if (args && typeof args === "object" && "destinationId" in args) {
@@ -138,11 +163,11 @@ vi.mock("@/components/TripPanel", () => ({
     onRouteModeChange: (tripId: string, mode: "walk" | "drive") => void;
   }) => {
     const currentStop = props.tripData?.stops.find((stop) => stop.status === "current");
-    const nonWindhoekSpot = props.spots.find((spot) => spot.id === "jetty-1905");
+    const swakopmundSpot = props.spots.find((spot) => spot.id === "spot-3");
     return (
       <div data-testid="trip-panel">
         {currentStop ? <button onClick={() => props.onMarkDone(currentStop._id)}>Done</button> : null}
-        {nonWindhoekSpot ? <button onClick={() => props.onRouteStop(nonWindhoekSpot)}>Route Swakopmund</button> : null}
+        {swakopmundSpot ? <button onClick={() => props.onRouteStop(swakopmundSpot)}>Route Swakopmund</button> : null}
       </div>
     );
   },
@@ -165,9 +190,9 @@ vi.mock("@/components/OnboardingDialog", () => ({
   OnboardingDialog: () => null,
 }));
 
-const firstSpot = destinations[0].spots[0]!;
-const secondSpot = destinations[0].spots[1]!;
-const swakopmundSpot = destinations[1].spots[0]!;
+const firstSpot = mockDestinations[0].spots[0]!;
+const secondSpot = mockDestinations[0].spots[1]!;
+const swakopmundSpot = mockDestinations[1].spots[0]!;
 
 describe("ExplorePage recommendation card", () => {
   beforeEach(() => {
@@ -184,7 +209,7 @@ describe("ExplorePage recommendation card", () => {
       vi.fn(() =>
         Promise.resolve({
           ok: true,
-          json: () => Promise.resolve(destinations),
+          json: () => Promise.resolve(mockDestinations),
         }),
       ),
     );
@@ -279,16 +304,16 @@ describe("ExplorePage recommendation card", () => {
     });
   });
 
-  it("ignores an explicit destination URL and keeps the Namibia-wide catalog", () => {
+  it("ignores an explicit destination URL and keeps the multi-destination catalog", () => {
     window.localStorage.setItem(
       "wandr.activeTrip.snapshot.v1",
       JSON.stringify({
         destinationId: "swakopmund",
         routeOpen: true,
-        routedSpotId: destinations[1].spots[0]!.id,
+        routedSpotId: mockDestinations[1].spots[0]!.id,
         lastViewedAt: Date.now(),
         trip: { _id: "trip-1", title: "Your adventure", status: "active", routeMode: "walk" },
-        stops: [{ _id: "stop-1", spotId: destinations[1].spots[0]!.id, position: 0, status: "current" }],
+        stops: [{ _id: "stop-1", spotId: mockDestinations[1].spots[0]!.id, position: 0, status: "current" }],
       }),
     );
 
@@ -304,7 +329,7 @@ describe("ExplorePage recommendation card", () => {
 
   it("routes a trip stop from another destination in the same Explore trip", async () => {
     testState.tripData = {
-      trip: { _id: "trip-1", title: "Your adventure", status: "planning", routeMode: "walk", destinationId: "namibia" },
+      trip: { _id: "trip-1", title: "Your adventure", status: "planning", routeMode: "walk", destinationId: "catalog" },
       stops: [{ _id: "stop-1", spotId: firstSpot.id, position: 0, status: "planned" }],
     };
 

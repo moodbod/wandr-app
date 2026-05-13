@@ -68,17 +68,17 @@ describe("trips.resumeActive", () => {
     const { userId, authed } = await createUser(t);
     const preferredTripId = await createTrip(t, {
       userId,
-      destinationId: "windhoek",
+      destinationId: "city-1",
       status: "active",
       updatedAt: 1,
-      spotId: "joes-beerhouse",
+      spotId: "spot-1",
     });
     await createTrip(t, {
       userId,
-      destinationId: "swakopmund",
+      destinationId: "city-2",
       status: "active",
       updatedAt: 2,
-      spotId: "jetty-1905",
+      spotId: "spot-2",
     });
 
     const result = await authed.query(api.trips.resumeActive, { preferredTripId });
@@ -92,17 +92,17 @@ describe("trips.resumeActive", () => {
     const { userId, authed } = await createUser(t);
     await createTrip(t, {
       userId,
-      destinationId: "windhoek",
+      destinationId: "city-1",
       status: "active",
       updatedAt: 1,
-      spotId: "joes-beerhouse",
+      spotId: "spot-1",
     });
     const recentTripId = await createTrip(t, {
       userId,
-      destinationId: "swakopmund",
+      destinationId: "city-2",
       status: "active",
       updatedAt: 5,
-      spotId: "jetty-1905",
+      spotId: "spot-2",
     });
 
     const result = await authed.query(api.trips.resumeActive, {});
@@ -115,22 +115,22 @@ describe("trips.resumeActive", () => {
     const { userId, authed } = await createUser(t);
     await createTrip(t, {
       userId,
-      destinationId: "windhoek",
+      destinationId: "city-1",
       status: "planning",
       updatedAt: 5,
-      spotId: "joes-beerhouse",
+      spotId: "spot-1",
     });
     await createTrip(t, {
       userId,
-      destinationId: "swakopmund",
+      destinationId: "city-2",
       status: "completed",
       updatedAt: 10,
-      spotId: "jetty-1905",
+      spotId: "spot-2",
     });
 
     const result = await authed.query(api.trips.resumeActive, {});
     expect(result?.trip.status).toBe("planning");
-    expect(result?.trip.destinationId).toBe("windhoek");
+    expect(result?.trip.destinationId).toBe("city-1");
   });
 
   it("does not return another user's preferred trip", async () => {
@@ -139,10 +139,10 @@ describe("trips.resumeActive", () => {
     const userTwo = await createUser(t);
     const otherTripId = await createTrip(t, {
       userId: userOne.userId,
-      destinationId: "windhoek",
+      destinationId: "city-1",
       status: "active",
       updatedAt: 10,
-      spotId: "joes-beerhouse",
+      spotId: "spot-1",
     });
 
     const result = await userTwo.authed.query(api.trips.resumeActive, { preferredTripId: otherTripId });
@@ -152,27 +152,27 @@ describe("trips.resumeActive", () => {
 });
 
 describe("trips Explore planning", () => {
-  it("creates one Namibia trip with stops from multiple destinations", async () => {
+  it("creates one catalog trip with stops from multiple destinations", async () => {
     const t = testBackend();
     const { authed } = await createUser(t);
 
     const first = await authed.mutation(api.trips.addStop, {
-      destinationId: "windhoek",
-      spotId: "joes-beerhouse",
+      destinationId: "city-1",
+      spotId: "spot-1",
     });
     const second = await authed.mutation(api.trips.addStop, {
-      destinationId: "swakopmund",
-      spotId: "jetty-1905",
+      destinationId: "city-2",
+      spotId: "spot-2",
     });
 
     expect(second.tripId).toBe(first.tripId);
 
     const result = await authed.query(api.trips.getActiveForExplore, {});
 
-    expect(result?.trip.destinationId).toBe("namibia");
+    expect(result?.trip.destinationId).toBe("catalog");
     expect(result?.stops).toMatchObject([
-      { destinationId: "windhoek", spotId: "joes-beerhouse", position: 0 },
-      { destinationId: "swakopmund", spotId: "jetty-1905", position: 1 },
+      { destinationId: "city-1", spotId: "spot-1", position: 0 },
+      { destinationId: "city-2", spotId: "spot-2", position: 1 },
     ]);
   });
 
@@ -181,12 +181,12 @@ describe("trips Explore planning", () => {
     const { authed } = await createUser(t);
 
     const first = await authed.mutation(api.trips.addStop, {
-      destinationId: "windhoek",
-      spotId: "joes-beerhouse",
+      destinationId: "city-1",
+      spotId: "spot-1",
     });
     const duplicate = await authed.mutation(api.trips.addStop, {
-      destinationId: "swakopmund",
-      spotId: "joes-beerhouse",
+      destinationId: "city-2",
+      spotId: "spot-1",
     });
 
     const result = await authed.query(api.trips.getActiveForExplore, {});
@@ -194,6 +194,6 @@ describe("trips Explore planning", () => {
     expect(duplicate.tripId).toBe(first.tripId);
     expect(duplicate.tripStopId).toBe(first.tripStopId);
     expect(result?.stops).toHaveLength(1);
-    expect(result?.stops[0]).toMatchObject({ destinationId: "windhoek", spotId: "joes-beerhouse" });
+    expect(result?.stops[0]).toMatchObject({ destinationId: "city-1", spotId: "spot-1" });
   });
 });

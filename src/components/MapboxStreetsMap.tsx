@@ -160,6 +160,7 @@ const MapboxStreetsMap = ({
       });
 
       setReady(true);
+      setTimeout(() => map.resize(), 100);
     });
     mapRef.current = map;
 
@@ -191,6 +192,18 @@ const MapboxStreetsMap = ({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
+
+  // Handle map view updates (sync with mapConfig)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+
+    map.jumpTo({
+      center: mapConfig.center,
+      zoom: mapConfig.zoom,
+    });
+    map.resize();
+  }, [mapConfig.center[0], mapConfig.center[1], mapConfig.zoom, ready]);
 
   // --- Update user position on the map ---
   useEffect(() => {

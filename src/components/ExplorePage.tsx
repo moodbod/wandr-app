@@ -5,6 +5,7 @@ import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
+import MapboxStreetsMap from "@/components/MapboxStreetsMap";
 import { Search, Coffee, Eye, Gem, Map, Route as RouteIcon, Navigation, SlidersHorizontal, ChevronDown, ListChecks } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -59,16 +60,13 @@ type ExploreSpot = Spot & {
   destinationCountry: string;
 };
 
-const namibiaMap = {
-  center: [17.0832, -22.5597] as [number, number],
-  zoom: 5.2,
-  label: "Namibia",
+const defaultMapConfig = {
+  center: [0, 0] as [number, number],
+  zoom: 2,
+  label: "World",
 };
 
-const MapboxStreetsMap = dynamic(() => import("@/components/MapboxStreetsMap"), {
-  ssr: false,
-  loading: () => <MapSkeleton />,
-});
+
 
 function isTripData(value: unknown): value is PersistedTripData {
   return Boolean(
@@ -206,6 +204,13 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
       .filter((spot): spot is NonNullable<typeof spot> => Boolean(spot));
   }, [allSpots, effectiveTripData?.trip.status, tripStops]);
 
+  const activeMapConfig = useMemo(() => {
+    if (destinations.length > 0 && destinations[0].map) {
+      return { ...destinations[0].map, label: destinations[0].city };
+    }
+    return defaultMapConfig;
+  }, [destinations]);
+
   useEffect(() => {
     if (fallbackNextStopId || allSpots.length === 0) {
       return;
@@ -274,7 +279,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
     const snapshot: ActiveTripSnapshot = {
       trip: effectiveTripData.trip,
       stops: effectiveTripData.stops,
-      destinationId: effectiveTripData.trip.destinationId ?? "namibia",
+      destinationId: effectiveTripData.trip.destinationId ?? "",
       routeOpen,
       routedSpotId,
       lastViewedAt: Date.now(),
@@ -369,7 +374,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
     return {
       trip: effectiveTripData.trip,
       stops: effectiveTripData.stops,
-      destinationId: effectiveTripData.trip.destinationId ?? "namibia",
+      destinationId: effectiveTripData.trip.destinationId ?? "",
       routeOpen,
       routedSpotId,
       lastViewedAt: Date.now(),
@@ -604,25 +609,12 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
     return <ExploreLoadingSkeleton children={children} />;
   }
 
-  if (allSpots.length === 0) {
-    return (
-      <main className="grid min-h-dvh place-items-center bg-background p-6 text-foreground">
-        <div className="max-w-sm rounded-lg border border-border bg-card p-5 text-center shadow-sm">
-          <h1 className="text-lg font-semibold">No places yet</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Ask an admin to seed or add the first Wandr destination in Convex.
-          </p>
-        </div>
-      </main>
-    );
-  }
-
   return (
     <main className="wandr-native-map-shell text-foreground">
       {/* Map */}
       <div className={["absolute inset-0", showDesktopTripPanel ? "lg:left-96" : ""].join(" ")}>
         <MapboxStreetsMap
-          mapConfig={namibiaMap}
+          mapConfig={activeMapConfig}
           spots={visibleSpots}
           nextStop={nextStop}
           highlightedSpotId={highlightedSpotId}
@@ -657,7 +649,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                 type="button"
                 onClick={() => runGatedAction(() => undefined)}
                 className="grid size-10 shrink-0 place-items-center rounded-full border border-white/70 bg-white/95 text-foreground backdrop-blur-xl transition-transform active:scale-95"
-                aria-label="Search Namibia"
+                aria-label="Search"
               >
                 <Search className="size-4" />
               </button>
@@ -753,7 +745,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
               <Search className="size-4 text-muted-foreground shrink-0" />
               <input
                 type="text"
-                placeholder="I'm in Namibia. What should I see?"
+                placeholder="Where should we go today?"
                 className="min-w-0 w-full bg-transparent py-1.5 text-[16px] placeholder:text-muted-foreground focus:outline-none sm:text-sm"
               />
               <button
@@ -908,7 +900,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
             </div>
           ) : (
             <div className="wandr-bottom-surface rounded-t-[2rem] border border-border bg-card p-4 pb-[calc(4rem+env(safe-area-inset-bottom))] text-center text-sm text-muted-foreground shadow-[0_-8px_30px_rgb(0,0,0,0.08)] sm:rounded-2xl sm:shadow-sm">
-              No Namibia spots in this category yet.
+              No spots in this category yet.
             </div>
           )}
         </div>

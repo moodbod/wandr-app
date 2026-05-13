@@ -2,7 +2,6 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireAdmin } from "./authz";
-import { defaultDestinations, seedImageBySlug } from "./seedData";
 
 const categoryValidator = v.union(v.literal("eat"), v.literal("see"), v.literal("gems"), v.literal("routes"));
 const lngLatValidator = v.array(v.number());
@@ -82,12 +81,25 @@ function getDestinationPayload(destination: Doc<"destinations">) {
   };
 }
 
-function getSpotPayload(spot: Doc<"spots">) {
+async function getSpotPayload(ctx: QueryCtx | MutationCtx, spot: Doc<"spots">) {
   if (!spot.lngLat) {
     return null;
   }
 
   const lngLat = requireLngLat(spot.lngLat);
+  let imageUrl = spot.image;
+
+  // Resolve storage ID to URL if it's not a direct URL/path
+  if (imageUrl && !imageUrl.startsWith("/") && !imageUrl.startsWith("http")) {
+    try {
+      const url = await ctx.storage.getUrl(imageUrl);
+      if (url) {
+        imageUrl = url;
+      }
+    } catch (e) {
+      // Not a storage ID, keep as is
+    }
+  }
 
   return {
     _id: spot._id,
@@ -101,7 +113,7 @@ function getSpotPayload(spot: Doc<"spots">) {
     driveMin: spot.driveMin,
     tip: spot.tip,
     tag: spot.tag,
-    image: spot.image,
+    image: imageUrl,
     status: spot.status ?? "active",
     archivedAt: spot.archivedAt ?? null,
   };
@@ -184,20 +196,21 @@ export const listPublic = query({
       group.push(spot);
     }
 
-    return destinations
-      .map((destination) => {
+    return Promise.all(
+      destinations.map(async (destination) => {
         const destinationPayload = getDestinationPayload(destination);
         if (!destinationPayload) {
           return null;
         }
 
         const spots = spotsByDestination.get(destination._id) ?? [];
+        const resolvedSpots = await Promise.all(spots.map((s) => getSpotPayload(ctx, s)));
         return {
           ...destinationPayload,
-          spots: spots.map(getSpotPayload).filter((spot) => spot !== null),
+          spots: resolvedSpots.filter((spot) => spot !== null),
         };
       })
-      .filter((destination) => destination !== null);
+    ).then((results) => results.filter((destination) => destination !== null));
   },
 });
 
@@ -209,6 +222,17 @@ export const adminList = query({
     const destinations = await ctx.db.query("destinations").take(100);
     const spots = await ctx.db.query("spots").take(500);
 
+    const resolvedSpots = await Promise.all(
+      spots.map(async (spot) => ({
+        ...(await getSpotPayload(ctx, spot)),
+        _id: spot._id,
+        destinationId: spot.destinationId,
+        slug: spot.slug,
+        status: spot.status ?? "active",
+        archivedAt: spot.archivedAt ?? null,
+      }))
+    );
+
     return {
       destinations: destinations.map((destination) => ({
         ...getDestinationPayload(destination),
@@ -216,14 +240,7 @@ export const adminList = query({
         status: destination.status ?? "active",
         archivedAt: destination.archivedAt ?? null,
       })),
-      spots: spots.map((spot) => ({
-        ...getSpotPayload(spot),
-        _id: spot._id,
-        destinationId: spot.destinationId,
-        slug: spot.slug,
-        status: spot.status ?? "active",
-        archivedAt: spot.archivedAt ?? null,
-      })),
+      spots: resolvedSpots,
     };
   },
 });
@@ -298,105 +315,174 @@ export const restoreSpot = mutation({
   },
 });
 
-export const seedNamibiaDefaults = mutation({
+export const createDestination = mutation({
+  args: {
+    slug: v.string(),
+    city: v.string(),
+    country: v.string(),
+    flag: v.string(),
+    mapTop: v.string(),
+    mapLeft: v.string(),
+    mapCenter: v.array(v.number()),
+    mapZoom: v.number(),
+    youTop: v.string(),
+    youLeft: v.string(),
+    youLngLat: v.array(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    
+    const existing = await ctx.db
+      .query("destinations")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
+
+    if (existing) {
+      throw new ConvexError("A destination with that slug already exists.");
+    }
+
+    return await ctx.db.insert("destinations", {
+      slug: args.slug,
+      city: args.city,
+      country: args.country,
+      flag: args.flag,
+      map: {
+        center: args.mapCenter,
+        zoom: args.mapZoom,
+      },
+      you: {
+        top: args.youTop,
+        left: args.youLeft,
+        lngLat: args.youLngLat,
+      },
+      status: "active",
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const updateDestination = mutation({
+  args: {
+    destinationId: v.id("destinations"),
+    slug: v.string(),
+    city: v.string(),
+    country: v.string(),
+    flag: v.string(),
+    mapTop: v.string(),
+    mapLeft: v.string(),
+    mapCenter: v.array(v.number()),
+    mapZoom: v.number(),
+    youTop: v.string(),
+    youLeft: v.string(),
+    youLngLat: v.array(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    
+    const existing = await ctx.db.get(args.destinationId);
+    if (!existing) {
+      throw new ConvexError("Destination not found.");
+    }
+
+    const duplicate = await ctx.db
+      .query("destinations")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
+
+    if (duplicate && duplicate._id !== args.destinationId) {
+      throw new ConvexError("A destination with that slug already exists.");
+    }
+
+    await ctx.db.patch(args.destinationId, {
+      slug: args.slug,
+      city: args.city,
+      country: args.country,
+      flag: args.flag,
+      map: {
+        center: args.mapCenter,
+        zoom: args.mapZoom,
+      },
+      you: {
+        top: args.youTop,
+        left: args.youLeft,
+        lngLat: args.youLngLat,
+      },
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const archiveDestination = mutation({
+  args: { destinationId: v.id("destinations") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const destination = await ctx.db.get(args.destinationId);
+
+    if (!destination) {
+      throw new ConvexError("Destination not found.");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(args.destinationId, { status: "archived", archivedAt: now, updatedAt: now });
+  },
+});
+
+export const deleteDestination = mutation({
+  args: { destinationId: v.id("destinations") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const destination = await ctx.db.get(args.destinationId);
+    if (!destination) throw new ConvexError("Destination not found.");
+
+    // Delete all spots for this destination
+    const spots = await ctx.db
+      .query("spots")
+      .withIndex("by_destination", (q) => q.eq("destinationId", args.destinationId))
+      .collect();
+    
+    for (const spot of spots) {
+      await ctx.db.delete(spot._id);
+    }
+
+    await ctx.db.delete(args.destinationId);
+  },
+});
+
+export const deleteSpot = mutation({
+  args: { spotId: v.id("spots") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    await ctx.db.delete(args.spotId);
+  },
+});
+
+export const resetDatabase = mutation({
   args: {},
   handler: async (ctx) => {
     await requireAdmin(ctx);
-    let insertedDestinations = 0;
-    let insertedSpots = 0;
-    let updatedSpots = 0;
-    const now = Date.now();
+    const destinations = await ctx.db.query("destinations").collect();
+    const spots = await ctx.db.query("spots").collect();
+    const trips = await ctx.db.query("trips").collect();
+    const stops = await ctx.db.query("tripStops").collect();
 
-    for (const destination of defaultDestinations) {
-      let destinationDoc = await ctx.db
-        .query("destinations")
-        .withIndex("by_slug", (q) => q.eq("slug", destination.slug))
-        .first();
+    for (const d of destinations) await ctx.db.delete(d._id);
+    for (const s of spots) await ctx.db.delete(s._id);
+    for (const t of trips) await ctx.db.delete(t._id);
+    for (const st of stops) await ctx.db.delete(st._id);
+  },
+});
 
-      if (!destinationDoc) {
-        const destinationId = await ctx.db.insert("destinations", {
-          slug: destination.slug,
-          city: destination.city,
-          country: destination.country,
-          flag: destination.flag,
-          map: { center: [...destination.map.center], zoom: destination.map.zoom },
-          you: { top: destination.you.top, left: destination.you.left, lngLat: [...destination.you.lngLat] },
-          status: "active",
-          updatedAt: now,
-        });
-        destinationDoc = await ctx.db.get(destinationId);
-        insertedDestinations += 1;
-      }
+export const restoreDestination = mutation({
+  args: { destinationId: v.id("destinations") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const destination = await ctx.db.get(args.destinationId);
 
-      if (!destinationDoc) {
-        throw new ConvexError("Could not seed destination.");
-      }
-
-      for (const spot of destination.spots) {
-        const existingSpot = await ctx.db
-          .query("spots")
-          .withIndex("by_slug", (q) => q.eq("slug", spot.slug))
-          .first();
-
-        if (existingSpot) {
-          const seedImage = seedImageBySlug[spot.slug] ?? placeholderImage;
-          const patch: Partial<Doc<"spots">> = {};
-
-          if (existingSpot.destinationId !== destinationDoc._id) {
-            patch.destinationId = destinationDoc._id;
-          }
-          if (existingSpot.name !== spot.name) {
-            patch.name = spot.name;
-          }
-          if (existingSpot.category !== spot.category) {
-            patch.category = spot.category;
-          }
-          if (existingSpot.top !== spot.top) {
-            patch.top = spot.top;
-          }
-          if (existingSpot.left !== spot.left) {
-            patch.left = spot.left;
-          }
-          if (JSON.stringify(existingSpot.lngLat ?? []) !== JSON.stringify(spot.lngLat)) {
-            patch.lngLat = [...spot.lngLat];
-          }
-          if (existingSpot.walkMin !== spot.walkMin) {
-            patch.walkMin = spot.walkMin;
-          }
-          if (existingSpot.driveMin !== spot.driveMin) {
-            patch.driveMin = spot.driveMin;
-          }
-          if (existingSpot.tip !== spot.tip) {
-            patch.tip = spot.tip;
-          }
-          if (existingSpot.tag !== spot.tag) {
-            patch.tag = spot.tag;
-          }
-          if (!existingSpot.image || existingSpot.image === placeholderImage) {
-            patch.image = seedImage;
-          }
-
-          if (Object.keys(patch).length > 0) {
-            await ctx.db.patch(existingSpot._id, { ...patch, updatedAt: now });
-            updatedSpots += 1;
-          }
-
-          continue;
-        }
-
-        await ctx.db.insert("spots", {
-          destinationId: destinationDoc._id,
-          ...spot,
-          lngLat: [...spot.lngLat],
-          image: seedImageBySlug[spot.slug] ?? placeholderImage,
-          status: "active",
-          updatedAt: now,
-        });
-        insertedSpots += 1;
-      }
+    if (!destination) {
+      throw new ConvexError("Destination not found.");
     }
 
-    return { insertedDestinations, insertedSpots, updatedSpots };
+    await ctx.db.patch(args.destinationId, { status: "active", archivedAt: undefined, updatedAt: Date.now() });
   },
 });
 
@@ -423,3 +509,12 @@ export const setFeaturedSpot = mutation({
     });
   },
 });
+
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType } from "react";
+import React, { type ComponentType } from "react";
 import { Compass, Route, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";

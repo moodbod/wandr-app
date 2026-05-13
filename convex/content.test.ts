@@ -29,12 +29,12 @@ async function createUser(t: ReturnType<typeof testBackend>, role?: "traveler" |
 async function createDestination(t: ReturnType<typeof testBackend>) {
   return await t.run(async (ctx) => {
     return await ctx.db.insert("destinations", {
-      slug: "windhoek",
-      city: "Windhoek",
-      country: "Namibia",
-      flag: "NA",
-      map: { center: [17.0832, -22.5597], zoom: 12 },
-      you: { top: "50%", left: "50%", lngLat: [17.0832, -22.5597] },
+      slug: "city-1",
+      city: "City 1",
+      country: "Test Country",
+      flag: "T1",
+      map: { center: [0, 0], zoom: 12 },
+      you: { top: "50%", left: "50%", lngLat: [0, 0] },
       status: "active",
       updatedAt: Date.now(),
     });
