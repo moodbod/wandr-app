@@ -9,12 +9,18 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
+    display_override: ["window-controls-overlay", "standalone", "minimal-ui"],
     orientation: "portrait",
-    // DO NOT CHANGE — must match bg-card (#fff) to avoid a visible strip behind the iPhone home indicator
     background_color: "#ffffff",
     theme_color: "#9fe870",
     categories: ["travel", "navigation", "lifestyle"],
     icons: [
+      {
+        src: "/icons/wandr-icon.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
       {
         src: "/icons/wandr-icon.png",
         sizes: "192x192",
@@ -25,8 +31,15 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/icons/wandr-icon.png",
         sizes: "512x512",
         type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/wandr-icon.png",
+        sizes: "512x512",
+        type: "image/png",
         purpose: "maskable",
       },
     ],
   };
 }
+

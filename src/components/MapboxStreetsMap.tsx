@@ -229,6 +229,7 @@ const MapboxStreetsMap = ({
       image.className = "wandr-photo-marker__image";
       image.loading = "lazy";
       image.decoding = "async";
+      image.onload = () => visual.classList.add("wandr-photo-marker__visual--loaded");
       photoWrap.append(image);
 
       const avatar = document.createElement("span");
