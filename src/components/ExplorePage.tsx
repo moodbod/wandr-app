@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { Search, Coffee, Eye, Gem, Map, Route as RouteIcon, Navigation, SlidersHorizontal, ChevronDown, ListChecks } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -49,6 +50,7 @@ type GatedAction = () => void;
 
 type ExplorePageProps = {
   initialDestinationId?: string;
+  children?: React.ReactNode;
 };
 
 type ExploreSpot = Spot & {
@@ -104,7 +106,9 @@ function snapshotIdentity(snapshot: ActiveTripSnapshot | null) {
   });
 }
 
-const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePageProps) => {
+const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: ExplorePageProps) => {
+  const pathname = usePathname();
+  const isRootRoute = pathname === "/";
   const { position: userPosition } = useUserLocation();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const remoteCatalogData = useQuery(api.content.listPublic, {});
@@ -207,8 +211,17 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
       return;
     }
 
+    const firstDestination = destinations[0];
+    if (firstDestination?.featuredSpotId) {
+      const featuredSpot = allSpots.find(s => s.id === firstDestination.featuredSpotId);
+      if (featuredSpot) {
+        setFallbackNextStopId(featuredSpot.id);
+        return;
+      }
+    }
+
     setFallbackNextStopId(allSpots[0].id);
-  }, [allSpots, fallbackNextStopId]);
+  }, [allSpots, destinations, fallbackNextStopId]);
 
   useEffect(() => {
     if (!isActiveTrip || !currentTripStop || currentTripStop.spotId === fallbackNextStopId) {
@@ -582,8 +595,13 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
     setRouteSummary(summary);
   }, []);
 
-  if (catalogData === undefined || (catalogData === null && remoteCatalogData === undefined)) {
-    return <ExploreLoadingSkeleton />;
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted || catalogData === undefined || (catalogData === null && remoteCatalogData === undefined)) {
+    return <ExploreLoadingSkeleton children={children} />;
   }
 
   if (allSpots.length === 0) {
@@ -629,6 +647,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
         className={[
           "absolute left-0 right-0 top-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top))]",
           showDesktopTripPanel ? "lg:left-96" : "",
+          !isRootRoute ? "hidden" : "",
         ].join(" ")}
       >
         <div className="sm:hidden">
@@ -773,6 +792,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
         className={[
           "wandr-bottom-sheet absolute bottom-0 left-0 right-0 z-30 sm:px-6 sm:pb-6",
           showDesktopTripPanel ? "lg:left-96" : "",
+          !isRootRoute ? "hidden" : "",
         ].join(" ")}
       >
         <div className="mx-auto flex w-full flex-col sm:max-w-2xl sm:gap-2.5">
@@ -894,7 +914,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
         </div>
       </div>
 
-      {showDesktopTripPanel ? (
+      {showDesktopTripPanel && isRootRoute ? (
         <div className="absolute bottom-0 left-0 top-0 z-30 hidden w-96 animate-in slide-in-from-left-6 duration-300 border-r border-border shadow-xl lg:block">
           <TripPanel
             title="Your trip"
@@ -1046,7 +1066,18 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId }: ExplorePag
       {/* Map Pre-warmer for offline caching */}
       <MapWarmup destinations={destinations} accessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN} />
       {/* Bottom navigation */}
-      <BottomNav onTripsClick={() => runGatedAction(() => setTripSheetOpen(true))} />
+      <div style={{ display: isRootRoute ? "block" : "none" }}>
+        <BottomNav onTripsClick={() => runGatedAction(() => setTripSheetOpen(true))} />
+      </div>
+
+      {children && (
+        <div
+          className="absolute inset-0 z-[100] bg-background overflow-y-auto"
+          style={{ display: isRootRoute ? "none" : "block" }}
+        >
+          {children}
+        </div>
+      )}
     </main>
   );
 };

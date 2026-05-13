@@ -20,6 +20,7 @@ export type Destination = {
   city: string;
   country: string;
   flag: string;
+  featuredSpotId?: string;
   map: { center: [number, number]; zoom: number };
   you: { top: string; left: string; lngLat: [number, number] };
   spots: Spot[];

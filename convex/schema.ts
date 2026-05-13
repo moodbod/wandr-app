@@ -25,6 +25,7 @@ export default defineSchema({
     city: v.string(),
     country: v.string(),
     flag: v.string(),
+    featuredSpotId: v.optional(v.id("spots")),
     map: v.optional(
       v.object({
         center: v.array(v.number()),

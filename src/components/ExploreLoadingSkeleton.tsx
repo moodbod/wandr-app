@@ -2,9 +2,12 @@
 
 import React from "react";
 import { MapSkeleton } from "./MapSkeleton";
+import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 
-export function ExploreLoadingSkeleton() {
+export function ExploreLoadingSkeleton({ children }: { children?: React.ReactNode }) {
+  const pathname = usePathname();
+  const isRootRoute = pathname === "/";
   return (
     <main className="wandr-native-map-shell text-foreground relative overflow-hidden">
       {/* Map Background */}
@@ -13,7 +16,7 @@ export function ExploreLoadingSkeleton() {
       </div>
 
       {/* Floating Header Skeleton */}
-      <header className="absolute left-0 right-0 top-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top))] pointer-events-none">
+      <header className={`absolute left-0 right-0 top-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top))] pointer-events-none ${!isRootRoute ? "hidden" : ""}`}>
         {/* Mobile Header */}
         <div className="sm:hidden">
           <div className="flex w-full items-center justify-between gap-2">
@@ -44,7 +47,7 @@ export function ExploreLoadingSkeleton() {
       </header>
 
       {/* Bottom Card Skeleton */}
-      <div className="absolute bottom-0 left-0 right-0 z-30 sm:px-6 sm:pb-6 pointer-events-none">
+      <div className={`absolute bottom-0 left-0 right-0 z-30 sm:px-6 sm:pb-6 pointer-events-none ${!isRootRoute ? "hidden" : ""}`}>
         <div className="mx-auto flex w-[calc(100%-1rem)] max-w-[24.5rem] flex-col sm:w-full sm:max-w-2xl">
           <div className="overflow-hidden rounded-t-[2rem] bg-card px-2 pb-8 pt-2.5 shadow-2xl sm:rounded-2xl sm:p-6 animate-pulse">
             <div className="mx-auto mb-3 h-1.5 w-8 rounded-full bg-muted sm:hidden" />
@@ -54,6 +57,15 @@ export function ExploreLoadingSkeleton() {
           </div>
         </div>
       </div>
+
+      {children && (
+        <div
+          className="absolute inset-0 z-[100] bg-background overflow-y-auto"
+          style={{ display: isRootRoute ? "none" : "block" }}
+        >
+          {children}
+        </div>
+      )}
     </main>
   );
 }

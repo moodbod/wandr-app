@@ -5,6 +5,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 import { PWARegistrar } from "@/components/PWARegistrar";
 import { Providers } from "./providers";
+import ExplorePage from "@/components/ExplorePage";
 
 export const metadata: Metadata = {
   applicationName: "Wandr",
@@ -45,7 +46,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <ExplorePage>{children}</ExplorePage>
+        </Providers>
         <PWARegistrar />
       </body>
     </html>

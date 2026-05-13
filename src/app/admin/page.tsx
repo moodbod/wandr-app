@@ -2,13 +2,14 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { Archive, ArrowLeft, Check, Loader2, Pencil, Plus, RotateCcw, ShieldCheck } from "lucide-react";
+import { Archive, ArrowLeft, Check, Loader2, Pencil, Plus, RotateCcw, ShieldCheck, Star } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { AuthDialog } from "@/components/AuthDialog";
+import { AdminMapPicker } from "@/components/AdminMapPicker";
 
 type Category = "eat" | "see" | "gems" | "routes";
 type SpotStatus = "active" | "archived";
@@ -19,6 +20,8 @@ type AdminDestination = {
   city?: string;
   country?: string;
   flag?: string;
+  featuredSpotId?: string;
+  map?: { center: [number, number]; zoom: number };
   status: SpotStatus;
   archivedAt: number | null;
 };
@@ -82,6 +85,7 @@ export default function AdminPage() {
   const updateSpot = useMutation(api.content.updateSpot);
   const archiveSpot = useMutation(api.content.archiveSpot);
   const restoreSpot = useMutation(api.content.restoreSpot);
+  const setFeaturedSpot = useMutation(api.content.setFeaturedSpot);
   const seedDefaults = useMutation(api.content.seedNamibiaDefaults);
   const [authOpen, setAuthOpen] = useState(false);
   const [selectedDestinationId, setSelectedDestinationId] = useState<Id<"destinations"> | "">("");
@@ -230,6 +234,20 @@ export default function AdminPage() {
     }
   };
 
+  const handleSetFeatured = async (spotId: Id<"spots">) => {
+    setError(null);
+    setMessage(null);
+
+    try {
+      if (selectedDestinationId) {
+        await setFeaturedSpot({ destinationId: selectedDestinationId, spotId });
+        setMessage("Set as recommended spot.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not set featured spot.");
+    }
+  };
+
   if (isLoading || (isAuthenticated && currentUser === undefined)) {
     return (
       <main className="grid min-h-dvh place-items-center bg-background text-foreground">
@@ -365,6 +383,16 @@ export default function AdminPage() {
                             <div className="flex gap-2">
                               <button
                                 type="button"
+                                onClick={() => void handleSetFeatured(spot._id)}
+                                className={["grid size-9 place-items-center rounded-full transition-colors",
+                                  selectedDestination?.featuredSpotId === spot._id ? "bg-accent text-background" : "bg-secondary text-foreground"
+                                ].join(" ")}
+                                aria-label={`Set ${spot.name} as recommended`}
+                              >
+                                <Star className="size-4" />
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => editSpot(spot)}
                                 className="grid size-9 place-items-center rounded-full bg-secondary text-foreground"
                                 aria-label={`Edit ${spot.name}`}
@@ -459,15 +487,18 @@ export default function AdminPage() {
                 </label>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid gap-1.5 text-sm font-medium">
-                  Longitude
-                  <input value={form.longitude} onChange={(event) => setForm((current) => ({ ...current, longitude: event.target.value }))} type="number" step="any" required className="min-h-11 rounded-lg border border-input bg-background px-3" />
-                </label>
-                <label className="grid gap-1.5 text-sm font-medium">
-                  Latitude
-                  <input value={form.latitude} onChange={(event) => setForm((current) => ({ ...current, latitude: event.target.value }))} type="number" step="any" required className="min-h-11 rounded-lg border border-input bg-background px-3" />
-                </label>
+              <div className="grid gap-1.5 text-sm font-medium">
+                Location on Map
+                <AdminMapPicker
+                  center={selectedDestination?.map?.center ?? [0, 0]}
+                  zoom={selectedDestination?.map?.zoom ?? 2}
+                  markerLngLat={form.longitude && form.latitude ? [Number(form.longitude), Number(form.latitude)] : null}
+                  onChange={(lng, lat) => setForm(current => ({ ...current, longitude: String(lng), latitude: String(lat) }))}
+                />
+                <div className="flex gap-3 text-xs text-muted-foreground mt-1">
+                  <span>Lng: {form.longitude || "-"}</span>
+                  <span>Lat: {form.latitude || "-"}</span>
+                </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">

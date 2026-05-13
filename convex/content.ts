@@ -72,6 +72,7 @@ function getDestinationPayload(destination: Doc<"destinations">) {
     city: destination.city,
     country: destination.country,
     flag: destination.flag,
+    featuredSpotId: destination.featuredSpotId,
     map: { center, zoom: destination.map.zoom },
     you: {
       top: destination.you.top,
@@ -396,5 +397,29 @@ export const seedNamibiaDefaults = mutation({
     }
 
     return { insertedDestinations, insertedSpots, updatedSpots };
+  },
+});
+
+export const setFeaturedSpot = mutation({
+  args: {
+    destinationId: v.id("destinations"),
+    spotId: v.id("spots"),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const destination = await ctx.db.get(args.destinationId);
+    if (!destination) {
+      throw new ConvexError("Destination not found.");
+    }
+
+    const spot = await ctx.db.get(args.spotId);
+    if (!spot || spot.destinationId !== args.destinationId) {
+      throw new ConvexError("Spot not found or does not belong to destination.");
+    }
+
+    await ctx.db.patch(args.destinationId, {
+      featuredSpotId: args.spotId,
+      updatedAt: Date.now(),
+    });
   },
 });
