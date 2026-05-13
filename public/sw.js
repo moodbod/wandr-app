@@ -1,5 +1,5 @@
-const CACHE_NAME = "wandr-pwa-v4";
-const APP_SHELL = ["/offline.html", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
+const CACHE_NAME = "wandr-pwa-v5";
+const APP_SHELL = ["/offline.html", "/manifest.webmanifest", "/wandr-favicon.png", "/icons/wandr-icon.png"];
 
 function cacheFirst(request) {
   return caches.match(request).then((cached) => {
