@@ -24,7 +24,7 @@
     --muted: 40 15% 92%;
     --muted-foreground: 0 0% 42%;
 
-    --accent: 14 80% 56%;              /* warm coral, single accent */
+    --accent: 96 71% 67%;              /* lime accent */
     --accent-foreground: 0 0% 100%;
 
     --highlight: 168 45% 42%;
@@ -35,7 +35,7 @@
 
     --border: 40 12% 88%;
     --input: 40 12% 88%;
-    --ring: 14 80% 56%;
+    --ring: 96 71% 67%;
 
     --radius: 0.875rem;
 
