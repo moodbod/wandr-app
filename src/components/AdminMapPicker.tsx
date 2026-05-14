@@ -140,7 +140,7 @@ export function AdminMapPicker({ center, zoom, markerLngLat, onChange, onZoomCha
       const popup = new mapboxgl.Popup({ offset: 25, closeButton: false })
         .setHTML(`<div class="px-1 py-0.5 font-bold text-xs">${markerLabel}</div>`);
       markerRef.current.setPopup(popup);
-      if (!markerRef.current.getPopup().isOpen()) {
+      if (!popup.isOpen()) {
         markerRef.current.togglePopup();
       }
     } else if (markerRef.current) {
