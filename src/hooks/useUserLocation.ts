@@ -151,7 +151,6 @@ export function useUserLocation() {
     if (!("geolocation" in navigator)) {
       setError("Geolocation not supported");
       setIsTracking(false);
-      setPreference({ enabled: false, prompted: true });
       return;
     }
 
