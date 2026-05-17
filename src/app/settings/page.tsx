@@ -21,7 +21,9 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { api } from "../../../convex/_generated/api";
 import { AuthDialog } from "@/components/AuthDialog";
 import { BottomNav } from "@/components/BottomNav";
+import { Switch } from "@/components/ui/switch";
 import type { Destination } from "@/data/destinations";
+import { useLiveLocationPreference } from "@/hooks/useUserLocation";
 
 const preferenceOptions = [
   { id: "eat", label: "Food" },
@@ -76,6 +78,7 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState(false);
+  const [liveLocationPreference, setLiveLocationPreference] = useLiveLocationPreference();
 
   useEffect(() => {
     if (!currentUser) {
@@ -97,6 +100,13 @@ export default function SettingsPage() {
     setSelectedPreferences((current) =>
       current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
     );
+  };
+
+  const handleLiveLocationChange = (checked: boolean) => {
+    setLiveLocationPreference({
+      enabled: checked,
+      prompted: !checked,
+    });
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -151,6 +161,25 @@ export default function SettingsPage() {
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
               Tune the basics and jump back into the trips you have started.
             </p>
+          </section>
+
+          <section className="rounded-2xl bg-card p-5 ring-1 ring-border">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-base font-medium">
+                  <MapPin className="size-4" />
+                  Live location
+                </div>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  Show your position on the map.
+                </p>
+              </div>
+              <Switch
+                checked={liveLocationPreference.enabled}
+                onCheckedChange={handleLiveLocationChange}
+                aria-label="Show live location"
+              />
+            </div>
           </section>
 
         {isLoadingAccount ? (
