@@ -55,22 +55,23 @@
     @apply border-border;
   }
 
-  html {
-    background: hsl(var(--background));
-  }
-
   html,
   body {
-    min-height: 100%;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    background: hsl(var(--background));
+    overscroll-behavior: none;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
     font-family: Inter, system-ui, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
-    min-height: 100vh;
-    min-height: 100dvh;
-    overflow-x: hidden;
+    position: fixed;
+    inset: 0;
   }
 }
 
@@ -254,33 +255,13 @@
     right: 0;
     z-index: 200;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-around;
-    padding-top: 0.5rem;
-    padding-bottom: calc(0.375rem + env(safe-area-inset-bottom, 0px));
-    background: hsl(var(--background) / 0.72);
+    height: 3.5rem;
+    background: hsl(var(--background) / 0.85);
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
     border-top: 0.5px solid hsl(var(--border) / 0.5);
-  }
-
-  /*
-   * Solid slab that extends below the nav into the home-indicator
-   * safe area. This guarantees the background is painted even when
-   * iOS clips the parent fixed element at the CSS viewport edge.
-   */
-  .wandr-bottom-nav::after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    /* Height = safe-area (fills the home-indicator zone) */
-    height: env(safe-area-inset-bottom, 0px);
-    /* Match the nav background exactly */
-    background: hsl(var(--background) / 0.72);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
   }
 
   .wandr-bottom-nav__tab {
@@ -291,7 +272,7 @@
     gap: 0.125rem;
     flex: 1;
     min-width: 0;
-    padding: 0.25rem 0;
+    height: 100%;
     color: hsl(var(--muted-foreground));
     text-decoration: none;
     transition: color 180ms ease, transform 120ms ease;
@@ -300,9 +281,6 @@
     background: none;
     cursor: pointer;
     font-family: inherit;
-    /* Keep tabs above the ::after slab */
-    position: relative;
-    z-index: 1;
   }
 
   .wandr-bottom-nav__tab:active {
@@ -333,24 +311,5 @@
 
   .wandr-bottom-nav__tab--active .wandr-bottom-nav__label {
     font-weight: 600;
-  }
-}
-
-/*
- * PWA standalone mode — prevent overscroll bounce and ensure the
- * safe-area under the home indicator blends with the tab bar.
- * The transparent background lets the nav's ::after paint the area.
- */
-@media (display-mode: standalone) {
-
-  html {
-    overscroll-behavior: none;
-    /* Match nav background so the safe area strip blends seamlessly */
-    background: hsl(var(--background));
-  }
-
-  body {
-    overscroll-behavior: none;
-    background: transparent;
   }
 }
