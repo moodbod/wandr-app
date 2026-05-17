@@ -13,6 +13,7 @@ import type { Spot } from "@/data/destinations";
 import {
   buildDirectionsUrl,
   buildRouteCacheKey,
+  distanceMeters,
   fetchAndCacheRoute,
   readRouteGeometry,
   type LngLat,
@@ -568,9 +569,45 @@ const MapboxStreetsMap = ({
         setRouteCoordinates(route.coordinates);
         onRouteSummaryChange?.({ ...route, source: "network" });
       })
-      .catch((error) => {
+      .catch(async (error) => {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
+        }
+
+        if (routeMode === "walk" && coordinates.length >= 2) {
+          try {
+            const fallbackUrl = buildDirectionsUrl(origin, routeTargets.map((spot) => spot.lngLat), "drive", accessToken);
+            const fallbackRoute = await fetchAndCacheRoute(routeKey + "_fallback", fallbackUrl, abortController.signal);
+            
+            if (abortController.signal.aborted || persistentMapState.routeKey !== routeKey) {
+              return;
+            }
+
+            setRouteCoordinates(fallbackRoute.coordinates);
+            onRouteSummaryChange?.({
+              distanceMeters: fallbackRoute.distanceMeters,
+              durationSeconds: fallbackRoute.distanceMeters / 1.4,
+              source: "network",
+            });
+            return;
+          } catch (fallbackError) {
+            if (fallbackError instanceof DOMException && fallbackError.name === "AbortError") {
+              return;
+            }
+
+            let totalDistance = 0;
+            for (let i = 0; i < coordinates.length - 1; i++) {
+              totalDistance += distanceMeters(coordinates[i], coordinates[i + 1]);
+            }
+
+            setRouteCoordinates(coordinates);
+            onRouteSummaryChange?.({
+              distanceMeters: totalDistance,
+              durationSeconds: totalDistance / 1.4,
+              source: "network",
+            });
+            return;
+          }
         }
 
         setRouteCoordinates([]);

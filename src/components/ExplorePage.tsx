@@ -176,7 +176,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [fallbackNextStopId, setFallbackNextStopId] = useState<string | null>(localSnapshot?.routedSpotId ?? null);
   const [openSpotId, setOpenSpotId] = useState<string | null>(null);
-  const [fallbackRouteMode, setFallbackRouteMode] = useState<"walk" | "drive">("walk");
+  const [fallbackRouteMode, setFallbackRouteMode] = useState<"walk" | "drive">("drive");
   const [routeOpen, setRouteOpen] = useState(() => Boolean(localSnapshot?.routeOpen));
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
   const [offlineRadiusKm, setOfflineRadiusKm] = useState(3);
@@ -396,6 +396,12 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   }, [effectiveTripData, routeOpen, routedSpotId]);
 
   useEffect(() => {
+    if (effectiveTripData?.trip?.status === "completed" && routeOpen) {
+      setRouteOpen(false);
+    }
+  }, [effectiveTripData?.trip?.status, routeOpen]);
+
+  useEffect(() => {
     if (!isOnline || offlineQueue.length > 0 || (!resumeTripData && !tripData)) {
       return;
     }
@@ -472,6 +478,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
     clearActiveTripSnapshot();
     setTripSheetOpen(false);
     setDesktopTripPanelOpen(false);
+    setRouteOpen(false);
   }, []);
 
   const buildCurrentSnapshot = useCallback((): ActiveTripSnapshot | null => {
@@ -529,6 +536,11 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
         return;
       }
 
+      const snapshot = buildCurrentSnapshot();
+      if (snapshot) {
+        setOptimisticTripData(applyOfflineAction(snapshot, action));
+      }
+
       void syncOfflineAction({ tripId: action.tripId as Id<"trips">, action: syncAction })
         .then((payload) => {
           const snapshot: ActiveTripSnapshot = {
@@ -543,7 +555,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
         })
         .catch(() => queueOfflineAction(action));
     },
-    [isOnline, persistSnapshot, queueOfflineAction, routeOpen, routedSpotId, syncOfflineAction],
+    [buildCurrentSnapshot, isOnline, persistSnapshot, queueOfflineAction, routeOpen, routedSpotId, syncOfflineAction],
   );
 
   useEffect(() => {

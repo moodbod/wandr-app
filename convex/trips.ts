@@ -229,7 +229,7 @@ export const addStop = mutation({
         destinationId: exploreDestinationId,
         title: "Your adventure",
         status: "planning",
-        routeMode: "walk",
+        routeMode: "drive",
         updatedAt: now,
       });
       trip = await ctx.db.get(tripId);
@@ -289,7 +289,7 @@ export const startFeaturedPlan = mutation({
       destinationId: exploreDestinationId,
       title: plan.title,
       status: "planning",
-      routeMode: "walk",
+      routeMode: "drive",
       updatedAt: now,
     });
 
@@ -363,7 +363,7 @@ export const setNextStop = mutation({
         destinationId: exploreDestinationId,
         title: "Your adventure",
         status: "planning",
-        routeMode: "walk",
+        routeMode: "drive",
         updatedAt: now,
       });
       trip = await ctx.db.get(tripId);

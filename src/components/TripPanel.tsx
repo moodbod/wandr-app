@@ -87,17 +87,6 @@ function TripModeToggle({
     <div className="inline-flex rounded-full bg-secondary p-1 text-sm font-medium">
       <button
         type="button"
-        onClick={() => onChange("walk")}
-        className={[
-          "inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 py-2 transition-colors",
-          mode === "walk" ? "bg-card text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground",
-        ].join(" ")}
-      >
-        <Footprints className="size-3.5" />
-        Walk
-      </button>
-      <button
-        type="button"
         onClick={() => onChange("drive")}
         className={[
           "inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 py-2 transition-colors",
@@ -106,6 +95,17 @@ function TripModeToggle({
       >
         <Car className="size-3.5" />
         Drive
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("walk")}
+        className={[
+          "inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 py-2 transition-colors",
+          mode === "walk" ? "bg-card text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground",
+        ].join(" ")}
+      >
+        <Footprints className="size-3.5" />
+        Walk
       </button>
     </div>
   );

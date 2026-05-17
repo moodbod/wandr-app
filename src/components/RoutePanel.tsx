@@ -55,16 +55,16 @@ const RoutePanel = ({ spot, mode, summary, isActive, isOnline, onModeChange, onC
       <div className="flex items-center gap-2 px-4 pb-5">
         <div className="flex rounded-full bg-secondary p-1 text-sm font-medium">
           <button
-            onClick={() => onModeChange("walk")}
-            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 py-2 transition-colors ${mode === "walk" ? "bg-card text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Footprints className="size-3.5" /> Walk
-          </button>
-          <button
             onClick={() => onModeChange("drive")}
             className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 py-2 transition-colors ${mode === "drive" ? "bg-card text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Car className="size-3.5" /> Drive
+          </button>
+          <button
+            onClick={() => onModeChange("walk")}
+            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 py-2 transition-colors ${mode === "walk" ? "bg-card text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Footprints className="size-3.5" /> Walk
           </button>
         </div>
 
