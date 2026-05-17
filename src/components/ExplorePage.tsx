@@ -37,6 +37,18 @@ import {
   type OfflineTripAction,
   type PersistedTripData,
 } from "@/lib/activeTripPersistence";
+import {
+  buildDirectionsUrl,
+  buildRouteCacheKey,
+  cacheImage,
+  cacheResponse,
+  estimateOfflineDownload,
+  fetchAndCacheRoute,
+  listOfflineAreas,
+  saveOfflineArea,
+  spotsInsideRadius,
+  type OfflineAreaRecord,
+} from "@/lib/offlineMapStorage";
 import { getCurrentStop, getRouteStopIds, getTripProgress, hasTripSpot, orderedTripStops } from "@/lib/tripPlanner";
 
 const fallbackCategories = [
@@ -164,6 +176,10 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   const [fallbackRouteMode, setFallbackRouteMode] = useState<"walk" | "drive">("walk");
   const [routeOpen, setRouteOpen] = useState(() => Boolean(localSnapshot?.routeOpen));
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
+  const [offlineRadiusKm, setOfflineRadiusKm] = useState(3);
+  const [offlineAreas, setOfflineAreas] = useState<OfflineAreaRecord[]>([]);
+  const [isDownloadingArea, setIsDownloadingArea] = useState(false);
+  const [offlineDownloadError, setOfflineDownloadError] = useState<string | null>(null);
   const [tripSheetOpen, setTripSheetOpen] = useState(false);
   const [desktopTripPanelOpen, setDesktopTripPanelOpen] = useState(true);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -237,6 +253,20 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
     return defaultMapConfig;
   }, [destinations]);
 
+  const offlineCenter = userPosition?.lngLat ?? nextStop?.lngLat ?? activeMapConfig.center;
+  const offlineRadiusMeters = offlineRadiusKm * 1000;
+  const offlineAreaSpots = useMemo(
+    () => spotsInsideRadius(allSpots, offlineCenter, offlineRadiusMeters),
+    [allSpots, offlineCenter, offlineRadiusMeters],
+  );
+  const offlineEstimateMb = useMemo(
+    () => estimateOfflineDownload(offlineAreaSpots, offlineRadiusMeters),
+    [offlineAreaSpots, offlineRadiusMeters],
+  );
+  const latestOfflineArea = offlineAreas
+    .filter((area) => area.status === "ready")
+    .sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null;
+
   useEffect(() => {
     if (fallbackNextStopId || allSpots.length === 0) {
       return;
@@ -278,6 +308,10 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   useEffect(() => {
     saveOfflineTripQueue(offlineQueue);
   }, [offlineQueue]);
+
+  useEffect(() => {
+    void listOfflineAreas().then(setOfflineAreas);
+  }, []);
 
   useEffect(() => {
     if (!resumeTripData?.trip) {
@@ -638,6 +672,83 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
     setRouteSummary(summary);
   }, []);
 
+  const handleDownloadOfflineArea = useCallback(async () => {
+    const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+
+    if (!accessToken || isDownloadingArea) {
+      setOfflineDownloadError(accessToken ? null : "Mapbox token missing.");
+      return;
+    }
+
+    setIsDownloadingArea(true);
+    setOfflineDownloadError(null);
+
+    const startedAt = Date.now();
+    const areaId = `area-${startedAt}`;
+    const areaSpots = offlineAreaSpots.length > 0 ? offlineAreaSpots : nextStop ? [nextStop] : [];
+    const routeKeys: string[] = [];
+
+    try {
+      await Promise.allSettled([
+        cacheResponse("/api/catalog", "wandr-pwa-v7"),
+        cacheResponse(`https://api.mapbox.com/styles/v1/mapbox/streets-v12?access_token=${accessToken}`),
+      ]);
+
+      await Promise.allSettled(areaSpots.map((spot) => cacheImage(spot.image)));
+
+      const routeJobs: Array<{ origin: [number, number]; stops: [number, number][]; mode: "walk" | "drive" }> = [];
+      const activeRouteStops = routeStopsForMap.length > 0 ? routeStopsForMap : nextStop ? [nextStop] : [];
+
+      if (activeRouteStops.length > 0) {
+        routeJobs.push({ origin: offlineCenter, stops: activeRouteStops.map((spot) => spot.lngLat), mode: routeMode });
+      }
+
+      for (const spot of areaSpots) {
+        routeJobs.push({ origin: offlineCenter, stops: [spot.lngLat], mode: "walk" });
+        routeJobs.push({ origin: offlineCenter, stops: [spot.lngLat], mode: "drive" });
+      }
+
+      for (const job of routeJobs.slice(0, 40)) {
+        const key = buildRouteCacheKey(job.origin, job.stops, job.mode);
+        routeKeys.push(key);
+        try {
+          await fetchAndCacheRoute(key, buildDirectionsUrl(job.origin, job.stops, job.mode, accessToken));
+        } catch {
+          // Keep the package useful even if one route fails.
+        }
+      }
+
+      const record: OfflineAreaRecord = {
+        id: areaId,
+        label: nextStop ? `${nextStop.name} area` : activeMapConfig.label,
+        center: offlineCenter,
+        radiusMeters: offlineRadiusMeters,
+        routeMode,
+        spotIds: areaSpots.map((spot) => spot.id),
+        routeKeys,
+        createdAt: startedAt,
+        updatedAt: Date.now(),
+        status: "ready",
+      };
+
+      await saveOfflineArea(record);
+      setOfflineAreas((current) => [record, ...current.filter((area) => area.id !== record.id)]);
+    } catch {
+      setOfflineDownloadError("Download failed.");
+    } finally {
+      setIsDownloadingArea(false);
+    }
+  }, [
+    activeMapConfig.label,
+    isDownloadingArea,
+    nextStop,
+    offlineAreaSpots,
+    offlineCenter,
+    offlineRadiusMeters,
+    routeMode,
+    routeStopsForMap,
+  ]);
+
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
     setIsMounted(true);
@@ -667,9 +778,44 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
         {/* Offline indicator */}
         {!isOnline && (
           <div className="wandr-offline-badge">
-            Offline
+            {latestOfflineArea ? `Offline: ${latestOfflineArea.label}` : "Offline"}
           </div>
         )}
+
+        {isRootRoute ? (
+          <div className="absolute bottom-[10rem] right-3 z-30 w-[min(18rem,calc(100vw-1.5rem))] rounded-2xl bg-card/95 p-3 text-xs ring-1 ring-border backdrop-blur sm:bottom-6 sm:right-8">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-semibold text-foreground">Download area</div>
+                <div className="truncate text-muted-foreground">
+                  {offlineAreaSpots.length} picks - ~{offlineEstimateMb} MB
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleDownloadOfflineArea}
+                disabled={isDownloadingArea}
+                className="inline-flex min-h-9 shrink-0 items-center rounded-full bg-foreground px-3 text-xs font-medium text-background transition-colors hover:bg-foreground/80 disabled:opacity-60"
+              >
+                {isDownloadingArea ? "Saving" : latestOfflineArea ? "Update" : "Download"}
+              </button>
+            </div>
+            <label className="mt-2 flex items-center gap-2 text-muted-foreground">
+              <span className="shrink-0 tabular-nums">{offlineRadiusKm} km</span>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                step="1"
+                value={offlineRadiusKm}
+                onChange={(event) => setOfflineRadiusKm(Number(event.target.value))}
+                className="min-w-0 flex-1 accent-foreground"
+                aria-label="Offline download radius"
+              />
+            </label>
+            {offlineDownloadError ? <div className="mt-1 text-[11px] font-medium text-destructive">{offlineDownloadError}</div> : null}
+          </div>
+        ) : null}
       </div>
 
       {/* Top */}

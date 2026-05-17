@@ -26,8 +26,15 @@ function formatDistance(meters: number) {
 }
 
 const RoutePanel = ({ spot, mode, summary, isActive, isOnline, onModeChange, onClose, onStart }: Props) => {
-  const eta = summary ? formatMinutes(summary.durationSeconds) : null;
-  const distance = summary ? formatDistance(summary.distanceMeters) : "Calculating route";
+  const unavailableReason = summary?.unavailableReason;
+  const eta = summary && !unavailableReason ? formatMinutes(summary.durationSeconds) : null;
+  const distance = summary && !unavailableReason ? formatDistance(summary.distanceMeters) : "Calculating route";
+  const statusText =
+    unavailableReason === "offline-missing-route"
+      ? "Route not downloaded"
+      : unavailableReason === "request-failed"
+        ? "Route unavailable"
+        : distance;
 
   return (
     <div className="overflow-hidden rounded-2xl bg-card">
@@ -65,8 +72,8 @@ const RoutePanel = ({ spot, mode, summary, isActive, isOnline, onModeChange, onC
           <div className="text-xl font-bold tabular-nums leading-none">{eta ? `${eta} min` : "--"}</div>
           <div className="mt-0.5 text-[11px] text-muted-foreground">
             {!isOnline && <span className="mr-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">Offline</span>}
-            {distance}
-            {summary ? ` · fastest ${mode}` : ""}
+            {statusText}
+            {summary && !unavailableReason ? ` - fastest ${mode}${summary.source === "cache" ? " - saved" : ""}` : ""}
           </div>
         </div>
       </div>

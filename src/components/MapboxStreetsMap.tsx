@@ -1,14 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl, {
   LngLatBounds,
   type GeoJSONSource,
   type Map as MapboxMap,
   type Marker,
 } from "mapbox-gl";
+import { LocateFixed } from "lucide-react";
 import type { UserPosition } from "@/hooks/useUserLocation";
 import type { Spot } from "@/data/destinations";
+import {
+  buildDirectionsUrl,
+  buildRouteCacheKey,
+  fetchAndCacheRoute,
+  readRouteGeometry,
+  type LngLat,
+} from "@/lib/offlineMapStorage";
 
 type Props = {
   mapConfig: {
@@ -34,10 +42,11 @@ const userSourceId = "wandr-user-position";
 const userCircleLayerId = "wandr-user-circle";
 const userDotLayerId = "wandr-user-dot";
 const userAccuracyLayerId = "wandr-user-accuracy";
-type LngLat = [number, number];
 export type RouteSummary = {
   distanceMeters: number;
   durationSeconds: number;
+  source?: "network" | "cache";
+  unavailableReason?: "offline-missing-route" | "missing-token" | "request-failed";
 };
 type MarkerHandle = {
   id: string;
@@ -45,6 +54,47 @@ type MarkerHandle = {
   marker: Marker;
 };
 
+type PersistentMapState = {
+  host: HTMLDivElement | null;
+  map: MapboxMap | null;
+  markers: MarkerHandle[];
+  ready: boolean;
+  loadPromise: Promise<void> | null;
+  resizeObserver: ResizeObserver | null;
+  resizeFrame: number | null;
+  didInitialCenter: boolean;
+  routeKey: string | null;
+};
+
+const persistentMapState: PersistentMapState = {
+  host: null,
+  map: null,
+  markers: [],
+  ready: false,
+  loadPromise: null,
+  resizeObserver: null,
+  resizeFrame: null,
+  didInitialCenter: false,
+  routeKey: null,
+};
+
+const followPreferenceKey = "wandr.map.followMode.v1";
+
+function readFollowPreference() {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  return window.localStorage.getItem(followPreferenceKey) !== "paused";
+}
+
+function saveFollowPreference(enabled: boolean) {
+  try {
+    window.localStorage.setItem(followPreferenceKey, enabled ? "follow" : "paused");
+  } catch {
+    // Follow preference is a small enhancement; ignore storage failures.
+  }
+}
 
 function markerTone(spot: Spot) {
   if (spot.category === "gems") {
@@ -75,114 +125,166 @@ const MapboxStreetsMap = ({
   onRouteSummaryChange,
 }: Props) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<MapboxMap | null>(null);
-  const markersRef = useRef<MarkerHandle[]>([]);
-  const [ready, setReady] = useState(false);
+  const mapRef = useRef<MapboxMap | null>(persistentMapState.map);
+  const markersRef = useRef<MarkerHandle[]>(persistentMapState.markers);
+  const [ready, setReady] = useState(persistentMapState.ready);
   const [routeCoordinates, setRouteCoordinates] = useState<LngLat[]>([]);
+  const [isFollowingUser, setIsFollowingUser] = useState(() => readFollowPreference());
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+  const mapCenter = mapConfig.center;
+  const mapZoom = mapConfig.zoom;
+  const programmaticMoveRef = useRef(false);
+  const isRouteActiveRef = useRef(routeOpen);
 
-  // Track whether we've done the initial center so we don't fight the user
-  const didInitialCenterRef = useRef(false);
+  useEffect(() => {
+    isRouteActiveRef.current = routeOpen;
+    if (routeOpen && userPosition && readFollowPreference()) {
+      setIsFollowingUser(true);
+    }
+  }, [routeOpen, userPosition]);
 
   // --- Map initialization ---
   useEffect(() => {
-    if (!containerRef.current || !accessToken || mapRef.current) {
+    if (!containerRef.current || !accessToken) {
       return;
     }
 
     const container = containerRef.current;
     mapboxgl.accessToken = accessToken;
+    let disposed = false;
 
-    // Use persisted position as initial center if available
-    const initialCenter = userPosition?.lngLat ?? mapConfig.center;
-    const initialZoom = userPosition ? 14 : mapConfig.zoom;
+    if (!persistentMapState.host) {
+      persistentMapState.host = document.createElement("div");
+      persistentMapState.host.className = "absolute inset-0";
+    }
 
-    const map = new mapboxgl.Map({
-      container,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: initialCenter,
-      zoom: initialZoom,
-      attributionControl: false,
-      pitchWithRotate: false,
-    });
+    container.append(persistentMapState.host);
 
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
-    map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-left");
+    if (!persistentMapState.map) {
+      const initialCenter = userPosition?.lngLat ?? mapConfig.center;
+      const initialZoom = userPosition ? 14 : mapConfig.zoom;
 
-    map.on("load", () => {
-      // Add user position source + layers
-      map.addSource(userSourceId, {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
+      const map = new mapboxgl.Map({
+        container: persistentMapState.host,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: initialCenter,
+        zoom: initialZoom,
+        attributionControl: false,
+        pitchWithRotate: false,
       });
 
-      // Accuracy circle (subtle blue fill)
-      map.addLayer({
-        id: userAccuracyLayerId,
-        type: "circle",
-        source: userSourceId,
-        paint: {
-          "circle-radius": ["get", "accuracyRadius"],
-          "circle-color": "hsl(210, 100%, 56%)",
-          "circle-opacity": 0.1,
-          "circle-stroke-width": 0,
-        },
-      });
+      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
+      map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-left");
 
-      // Outer glow
-      map.addLayer({
-        id: userCircleLayerId,
-        type: "circle",
-        source: userSourceId,
-        paint: {
-          "circle-radius": 11,
-          "circle-color": "hsl(0, 0%, 100%)",
-          "circle-opacity": 1,
-        },
-      });
+      persistentMapState.map = map;
+      persistentMapState.loadPromise = new Promise((resolve) => {
+        map.on("load", () => {
+          if (!map.getSource(userSourceId)) {
+            map.addSource(userSourceId, {
+              type: "geojson",
+              data: { type: "FeatureCollection", features: [] },
+            });
+          }
 
-      // Inner blue dot
-      map.addLayer({
-        id: userDotLayerId,
-        type: "circle",
-        source: userSourceId,
-        paint: {
-          "circle-radius": 7,
-          "circle-color": "hsl(210, 100%, 56%)",
-          "circle-opacity": 1,
-        },
-      });
+          if (!map.getLayer(userAccuracyLayerId)) {
+            map.addLayer({
+              id: userAccuracyLayerId,
+              type: "circle",
+              source: userSourceId,
+              paint: {
+                "circle-radius": ["get", "accuracyRadius"],
+                "circle-color": "hsl(210, 100%, 56%)",
+                "circle-opacity": 0.1,
+                "circle-stroke-width": 0,
+              },
+            });
+          }
 
-      setReady(true);
-      setTimeout(() => map.resize(), 100);
-    });
+          if (!map.getLayer(userCircleLayerId)) {
+            map.addLayer({
+              id: userCircleLayerId,
+              type: "circle",
+              source: userSourceId,
+              paint: {
+                "circle-radius": 11,
+                "circle-color": "hsl(0, 0%, 100%)",
+                "circle-opacity": 1,
+              },
+            });
+          }
+
+          if (!map.getLayer(userDotLayerId)) {
+            map.addLayer({
+              id: userDotLayerId,
+              type: "circle",
+              source: userSourceId,
+              paint: {
+                "circle-radius": 7,
+                "circle-color": "hsl(210, 100%, 56%)",
+                "circle-opacity": 1,
+              },
+            });
+          }
+
+          persistentMapState.ready = true;
+          resolve();
+        });
+      });
+    }
+
+    const map = persistentMapState.map;
     mapRef.current = map;
 
-    let resizeFrame: number | null = null;
-    const resizeObserver =
+    persistentMapState.loadPromise?.then(() => {
+      if (disposed) {
+        return;
+      }
+      setReady(true);
+      window.setTimeout(() => map?.resize(), 80);
+    });
+
+    const pauseFollow = () => {
+      if (programmaticMoveRef.current || !isRouteActiveRef.current) {
+        return;
+      }
+      setIsFollowingUser(false);
+      saveFollowPreference(false);
+    };
+    map?.on("dragstart", pauseFollow);
+    map?.on("zoomstart", pauseFollow);
+    map?.on("rotatestart", pauseFollow);
+    map?.on("pitchstart", pauseFollow);
+
+    if (persistentMapState.resizeObserver) {
+      persistentMapState.resizeObserver.disconnect();
+    }
+    persistentMapState.resizeObserver =
       typeof ResizeObserver === "undefined"
         ? null
         : new ResizeObserver(() => {
-            if (resizeFrame !== null) {
-              window.cancelAnimationFrame(resizeFrame);
+            if (persistentMapState.resizeFrame !== null) {
+              window.cancelAnimationFrame(persistentMapState.resizeFrame);
             }
 
-            resizeFrame = window.requestAnimationFrame(() => {
-              map.resize();
-              resizeFrame = null;
+            persistentMapState.resizeFrame = window.requestAnimationFrame(() => {
+              map?.resize();
+              persistentMapState.resizeFrame = null;
             });
           });
-    resizeObserver?.observe(container);
+    persistentMapState.resizeObserver?.observe(container);
 
     return () => {
-      if (resizeFrame !== null) {
-        window.cancelAnimationFrame(resizeFrame);
+      disposed = true;
+      map?.off("dragstart", pauseFollow);
+      map?.off("zoomstart", pauseFollow);
+      map?.off("rotatestart", pauseFollow);
+      map?.off("pitchstart", pauseFollow);
+      if (persistentMapState.resizeFrame !== null) {
+        window.cancelAnimationFrame(persistentMapState.resizeFrame);
+        persistentMapState.resizeFrame = null;
       }
-      resizeObserver?.disconnect();
-      markersRef.current.forEach(({ marker }) => marker.remove());
-      markersRef.current = [];
-      map.remove();
-      mapRef.current = null;
+      persistentMapState.resizeObserver?.disconnect();
+      persistentMapState.host?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
@@ -190,14 +292,18 @@ const MapboxStreetsMap = ({
   // Handle map view updates (sync with mapConfig)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !ready) return;
+    if (!map || !ready || routeOpen) return;
 
+    programmaticMoveRef.current = true;
     map.jumpTo({
-      center: mapConfig.center,
-      zoom: mapConfig.zoom,
+      center: mapCenter,
+      zoom: mapZoom,
     });
     map.resize();
-  }, [mapConfig.center[0], mapConfig.center[1], mapConfig.zoom, ready]);
+    window.setTimeout(() => {
+      programmaticMoveRef.current = false;
+    }, 0);
+  }, [mapCenter, mapZoom, ready, routeOpen]);
 
   // --- Update user position on the map ---
   useEffect(() => {
@@ -238,12 +344,12 @@ const MapboxStreetsMap = ({
   // --- Initial camera: fit to spots if no user position ---
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !ready || didInitialCenterRef.current) {
+    if (!map || !ready || persistentMapState.didInitialCenter) {
       return;
     }
 
     if (userPosition) {
-      didInitialCenterRef.current = true;
+      persistentMapState.didInitialCenter = true;
       return;
     }
 
@@ -251,30 +357,59 @@ const MapboxStreetsMap = ({
       return;
     }
 
-    didInitialCenterRef.current = true;
+    persistentMapState.didInitialCenter = true;
     const bounds = new LngLatBounds();
     spots.forEach((spot) => bounds.extend(spot.lngLat));
+    programmaticMoveRef.current = true;
     map.fitBounds(bounds, {
       padding: { top: 140, right: 80, bottom: 260, left: 80 },
       maxZoom: 12,
       duration: 700,
       essential: true,
     });
+    window.setTimeout(() => {
+      programmaticMoveRef.current = false;
+    }, 750);
   }, [ready, spots, userPosition]);
 
   // --- Follow mode: recenter on user when routing is active ---
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !ready || !routeOpen || !userPosition) {
+    if (!map || !ready || !routeOpen || !userPosition || !isFollowingUser) {
       return;
     }
 
+    programmaticMoveRef.current = true;
     map.easeTo({
       center: userPosition.lngLat,
+      zoom: Math.max(map.getZoom(), 15),
       duration: 600,
       essential: false,
     });
-  }, [ready, routeOpen, userPosition]);
+    window.setTimeout(() => {
+      programmaticMoveRef.current = false;
+    }, 650);
+  }, [isFollowingUser, ready, routeOpen, userPosition]);
+
+  const handleRecenter = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !userPosition) {
+      return;
+    }
+
+    setIsFollowingUser(true);
+    saveFollowPreference(true);
+    programmaticMoveRef.current = true;
+    map.easeTo({
+      center: userPosition.lngLat,
+      zoom: Math.max(map.getZoom(), 15),
+      duration: 450,
+      essential: true,
+    });
+    window.setTimeout(() => {
+      programmaticMoveRef.current = false;
+    }, 500);
+  }, [userPosition]);
 
   // --- Stable callback ref for marker click handlers ---
   const onOpenSpotRef = useRef(onOpenSpot);
@@ -289,6 +424,7 @@ const MapboxStreetsMap = ({
       return;
     }
 
+    markersRef.current = persistentMapState.markers;
     const prevById = new Map(markersRef.current.map((h) => [h.id, h]));
     const nextIds = new Set(spots.map((s) => s.id));
 
@@ -348,6 +484,7 @@ const MapboxStreetsMap = ({
     });
 
     markersRef.current = kept;
+    persistentMapState.markers = kept;
   }, [ready, spots]);
 
   // --- Highlighted spot ---
@@ -369,48 +506,43 @@ const MapboxStreetsMap = ({
     }
 
     const routeTargets = routeOpen ? (routeStops.length > 0 ? routeStops : nextStop ? [nextStop] : []) : [];
-    const origin = userPosition?.lngLat ?? mapConfig.center;
+    const origin = userPosition?.lngLat ?? mapCenter;
     const coordinates = [origin, ...routeTargets.map((spot) => spot.lngLat)];
     const abortController = new AbortController();
 
     if (coordinates.length < 2 || !accessToken) {
       setRouteCoordinates([]);
-      onRouteSummaryChange?.(null);
+      onRouteSummaryChange?.(accessToken ? null : { distanceMeters: 0, durationSeconds: 0, unavailableReason: "missing-token" });
       return () => abortController.abort();
     }
 
-    const profile = routeMode === "walk" ? "walking" : "driving";
-    const coordinateParam = coordinates.map(([lng, lat]) => `${lng},${lat}`).join(";");
-    const url = new URL(`https://api.mapbox.com/directions/v5/mapbox/${profile}/${coordinateParam}`);
-    url.searchParams.set("alternatives", "false");
-    url.searchParams.set("continue_straight", "false");
-    url.searchParams.set("geometries", "geojson");
-    url.searchParams.set("overview", "simplified");
-    url.searchParams.set("steps", "false");
-    url.searchParams.set("access_token", accessToken);
+    const routeKey = buildRouteCacheKey(origin, routeTargets.map((spot) => spot.lngLat), routeMode);
+    const url = buildDirectionsUrl(origin, routeTargets.map((spot) => spot.lngLat), routeMode, accessToken);
+    persistentMapState.routeKey = routeKey;
 
-    fetch(url, { signal: abortController.signal })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Directions request failed: ${response.status}`);
+    readRouteGeometry(routeKey)
+      .then((cachedRoute) => {
+        if (abortController.signal.aborted || persistentMapState.routeKey !== routeKey) {
+          return null;
         }
 
-        return response.json() as Promise<{
-          routes?: Array<{
-            distance?: number;
-            duration?: number;
-            geometry?: { coordinates?: LngLat[] };
-          }>;
-        }>;
+        if (cachedRoute) {
+          setRouteCoordinates(cachedRoute.coordinates);
+          onRouteSummaryChange?.({ ...cachedRoute, source: "cache" });
+          if (typeof navigator !== "undefined" && !navigator.onLine) {
+            return null;
+          }
+        }
+
+        return fetchAndCacheRoute(routeKey, url, abortController.signal);
       })
-      .then((data) => {
-        const route = data.routes?.[0];
-        setRouteCoordinates(route?.geometry?.coordinates ?? []);
-        onRouteSummaryChange?.(
-          typeof route?.distance === "number" && typeof route.duration === "number"
-            ? { distanceMeters: route.distance, durationSeconds: route.duration }
-            : null,
-        );
+      .then((route) => {
+        if (!route || abortController.signal.aborted || persistentMapState.routeKey !== routeKey) {
+          return;
+        }
+
+        setRouteCoordinates(route.coordinates);
+        onRouteSummaryChange?.({ ...route, source: "network" });
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -418,14 +550,18 @@ const MapboxStreetsMap = ({
         }
 
         setRouteCoordinates([]);
-        onRouteSummaryChange?.(null);
+        onRouteSummaryChange?.(
+          typeof navigator !== "undefined" && !navigator.onLine
+            ? { distanceMeters: 0, durationSeconds: 0, unavailableReason: "offline-missing-route" }
+            : { distanceMeters: 0, durationSeconds: 0, unavailableReason: "request-failed" },
+        );
       });
 
     return () => abortController.abort();
   }, [
     accessToken,
     userPosition?.lngLat,
-    mapConfig.center,
+    mapCenter,
     nextStop,
     ready,
     routeMode,
@@ -434,14 +570,8 @@ const MapboxStreetsMap = ({
     onRouteSummaryChange,
   ]);
 
-  // --- Route line rendering ---
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !ready) {
-      return;
-    }
-
-    const data: GeoJSON.FeatureCollection<GeoJSON.LineString> = {
+  const routeData = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString>>(
+    () => ({
       type: "FeatureCollection",
       features:
         routeCoordinates.length > 1
@@ -456,13 +586,22 @@ const MapboxStreetsMap = ({
               },
             ]
           : [],
-    };
+    }),
+    [routeCoordinates],
+  );
+
+  // --- Route line rendering ---
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) {
+      return;
+    }
 
     const source = map.getSource(routeSourceId) as GeoJSONSource | undefined;
     if (source) {
-      source.setData(data);
+      source.setData(routeData);
     } else {
-      map.addSource(routeSourceId, { type: "geojson", data });
+      map.addSource(routeSourceId, { type: "geojson", data: routeData });
       map.addLayer({
         id: routeCasingLayerId,
         type: "line",
@@ -499,7 +638,7 @@ const MapboxStreetsMap = ({
     if (map.getLayer(routeLayerId)) {
       map.setPaintProperty(routeLayerId, "line-width", routeMode === "drive" ? 4 : 3);
     }
-  }, [ready, routeCoordinates, routeMode]);
+  }, [ready, routeData, routeMode]);
 
   if (!accessToken) {
     return (
@@ -511,7 +650,25 @@ const MapboxStreetsMap = ({
     );
   }
 
-  return <div ref={containerRef} className="absolute inset-0" aria-label={`Map of ${mapConfig.label}`} />;
+  return (
+    <>
+      <div ref={containerRef} className="absolute inset-0" aria-label={`Map of ${mapConfig.label}`} />
+      {userPosition ? (
+        <button
+          type="button"
+          onClick={handleRecenter}
+          className={[
+            "absolute right-4 top-[5.25rem] z-30 grid size-11 place-items-center rounded-full bg-card text-foreground ring-1 ring-border transition-colors hover:bg-secondary sm:right-8 sm:top-24",
+            routeOpen && isFollowingUser ? "text-blue-600" : "",
+          ].join(" ")}
+          aria-label="Recenter on your location"
+          title="Recenter"
+        >
+          <LocateFixed className="size-4" />
+        </button>
+      ) : null}
+    </>
+  );
 };
 
 export default MapboxStreetsMap;

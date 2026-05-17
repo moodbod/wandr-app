@@ -39,7 +39,7 @@ export function MapWarmup({ destinations, accessToken }: MapWarmupProps) {
       url.searchParams.set("alternatives", "false");
       url.searchParams.set("continue_straight", "false");
       url.searchParams.set("geometries", "geojson");
-      url.searchParams.set("overview", "simplified");
+      url.searchParams.set("overview", "full");
       url.searchParams.set("steps", "false");
       url.searchParams.set("access_token", accessToken);
       return url.toString();

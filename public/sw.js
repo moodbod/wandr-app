@@ -1,4 +1,4 @@
-const CACHE_NAME = "wandr-pwa-v6";
+const CACHE_NAME = "wandr-pwa-v7";
 const APP_SHELL = [
   "/",
   "/offline.html",
@@ -72,7 +72,13 @@ self.addEventListener("activate", (event) => {
       .then((cacheNames) =>
         Promise.all(
           cacheNames
-            .filter((cacheName) => cacheName !== CACHE_NAME && cacheName !== "wandr-mapbox" && cacheName !== "wandr-directions")
+            .filter(
+              (cacheName) =>
+                cacheName !== CACHE_NAME &&
+                cacheName !== "wandr-mapbox" &&
+                cacheName !== "wandr-directions" &&
+                cacheName !== "wandr-offline-images",
+            )
             .map((cacheName) => caches.delete(cacheName)),
         ),
       )
@@ -101,7 +107,7 @@ self.addEventListener("fetch", (event) => {
       event.respondWith(cacheMapbox(request));
       return;
     }
-    // Directions API — road routes don't change, cache-first for reliable offline
+    // Directions API: cached road geometry powers offline routing.
     if (url.pathname.includes("/directions/v5/")) {
       event.respondWith(cacheFirst(request, "wandr-directions"));
       return;
