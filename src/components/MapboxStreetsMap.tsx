@@ -298,12 +298,13 @@ const MapboxStreetsMap = ({
     const map = mapRef.current;
     if (!map || !ready || routeOpen) return;
 
-    const isInitialRun = !persistentMapState.lastTargetCenter;
+    const lastTargetCenter = persistentMapState.lastTargetCenter;
+    const isInitialRun = !lastTargetCenter;
 
     const centerChanged =
       isInitialRun ||
-      persistentMapState.lastTargetCenter[0] !== mapCenter[0] ||
-      persistentMapState.lastTargetCenter[1] !== mapCenter[1];
+      lastTargetCenter[0] !== mapCenter[0] ||
+      lastTargetCenter[1] !== mapCenter[1];
     const zoomChanged = persistentMapState.lastTargetZoom !== mapZoom;
 
     if (centerChanged || zoomChanged) {
