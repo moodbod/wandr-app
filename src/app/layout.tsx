@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
 import type { ReactNode } from "react";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 import { PWARegistrar } from "@/components/PWARegistrar";
@@ -50,6 +52,8 @@ export default function RootLayout({
           <ExplorePage>{children}</ExplorePage>
         </Providers>
         <PWARegistrar />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
