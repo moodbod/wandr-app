@@ -1351,10 +1351,8 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
       <OnboardingDialog open={onboardingOpen} onComplete={handleOnboardingComplete} />
       {/* Map Pre-warmer for offline caching */}
       <MapWarmup destinations={destinations} accessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN} />
-      {/* Bottom navigation */}
-      <div style={{ display: isRootRoute ? "block" : "none" }}>
-        <BottomNav onTripsClick={() => runGatedAction(() => setTripSheetOpen(true))} />
-      </div>
+      {/* Bottom navigation — always visible, fixed above overlays */}
+      <BottomNav onTripsClick={() => runGatedAction(() => setTripSheetOpen(true))} />
 
       {children && (
         <div

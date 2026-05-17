@@ -20,7 +20,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { api } from "../../../convex/_generated/api";
 import { AuthDialog } from "@/components/AuthDialog";
-import { BottomNav } from "@/components/BottomNav";
+
 import { Switch } from "@/components/ui/switch";
 import type { Destination } from "@/data/destinations";
 import { useLiveLocationPreference } from "@/hooks/useUserLocation";
@@ -444,7 +444,7 @@ export default function SettingsPage() {
         onClose={() => setAuthOpen(false)}
         onSubmitted={() => setAuthOpen(false)}
       />
-      <BottomNav />
+
     </main>
   );
 }

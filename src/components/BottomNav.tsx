@@ -41,8 +41,8 @@ export function BottomNav({ onTripsClick }: BottomNavProps) {
               onClick={onTripsClick}
               className={`wandr-bottom-nav__tab${isActive ? " wandr-bottom-nav__tab--active" : ""}`}
             >
-              <Icon className="size-[1.6rem]" />
-              <span>{tab.label}</span>
+              <Icon className="wandr-bottom-nav__icon" />
+              <span className="wandr-bottom-nav__label">{tab.label}</span>
             </button>
           );
         }
@@ -53,8 +53,8 @@ export function BottomNav({ onTripsClick }: BottomNavProps) {
             href={tab.href}
             className={`wandr-bottom-nav__tab${isActive ? " wandr-bottom-nav__tab--active" : ""}`}
           >
-            <Icon className="size-[1.6rem]" />
-            <span>{tab.label}</span>
+            <Icon className="wandr-bottom-nav__icon" />
+            <span className="wandr-bottom-nav__label">{tab.label}</span>
           </Link>
         );
       })}
