@@ -62,6 +62,7 @@ type Props = {
   onMarkDone: (tripStopId: string) => void;
   onSkipStop: (tripStopId: string) => void;
   onRouteModeChange: (tripId: string, mode: RouteMode) => void;
+  onCloseTrip?: () => void;
 };
 
 const statusLabel: Record<TripStopStatus, string> = {
@@ -125,6 +126,7 @@ const TripPanel = ({
   onMarkDone,
   onSkipStop,
   onRouteModeChange,
+  onCloseTrip,
 }: Props) => {
   const trip = tripData?.trip ?? null;
   const stops = orderedTripStops(tripData?.stops ?? []);
@@ -391,7 +393,14 @@ const TripPanel = ({
         </div>
       ) : trip?.status === "completed" ? (
         <div className="border-t border-border p-5 text-center text-sm font-medium text-foreground">
-          Stop complete. Adventure wrapped.
+          <div className="mb-4">Stop complete. Adventure wrapped.</div>
+          <button
+            type="button"
+            onClick={onCloseTrip}
+            className="inline-flex min-h-12 w-full items-center justify-center gap-1.5 rounded-full bg-foreground px-5 py-3 text-base font-medium text-background transition-colors hover:bg-foreground/80"
+          >
+            Start new route
+          </button>
         </div>
       ) : null}
     </aside>

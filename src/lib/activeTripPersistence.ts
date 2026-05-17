@@ -22,39 +22,39 @@ export type PersistedTripData = {
 
 export type OfflineTripAction =
   | {
-      id: string;
-      tripId: string;
-      createdAt: number;
-      type: "markDone";
-      tripStopId: string;
-    }
+    id: string;
+    tripId: string;
+    createdAt: number;
+    type: "markDone";
+    tripStopId: string;
+  }
   | {
-      id: string;
-      tripId: string;
-      createdAt: number;
-      type: "skip";
-      tripStopId: string;
-    }
+    id: string;
+    tripId: string;
+    createdAt: number;
+    type: "skip";
+    tripStopId: string;
+  }
   | {
-      id: string;
-      tripId: string;
-      createdAt: number;
-      type: "setRouteMode";
-      routeMode: RouteMode;
-    }
+    id: string;
+    tripId: string;
+    createdAt: number;
+    type: "setRouteMode";
+    routeMode: RouteMode;
+  }
   | {
-      id: string;
-      tripId: string;
-      createdAt: number;
-      type: "moveStop";
-      tripStopId: string;
-      direction: "up" | "down";
-    };
+    id: string;
+    tripId: string;
+    createdAt: number;
+    type: "moveStop";
+    tripStopId: string;
+    direction: "up" | "down";
+  };
 
 type NewOfflineTripAction = OfflineTripAction extends infer Action
   ? Action extends OfflineTripAction
-    ? Omit<Action, "id" | "createdAt">
-    : never
+  ? Omit<Action, "id" | "createdAt">
+  : never
   : never;
 
 export type ActiveTripSnapshot = PersistedTripData & {

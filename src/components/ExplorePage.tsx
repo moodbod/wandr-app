@@ -31,6 +31,7 @@ import {
   readCatalogSnapshot,
   readOfflineTripQueue,
   saveActiveTripSnapshot,
+  clearActiveTripSnapshot,
   saveCatalogSnapshot,
   saveOfflineTripQueue,
   type ActiveTripSnapshot,
@@ -84,11 +85,11 @@ const defaultMapConfig = {
 function isTripData(value: unknown): value is PersistedTripData {
   return Boolean(
     value &&
-      typeof value === "object" &&
-      "trip" in value &&
-      "stops" in value &&
-      (value as PersistedTripData).trip &&
-      Array.isArray((value as PersistedTripData).stops),
+    typeof value === "object" &&
+    "trip" in value &&
+    "stops" in value &&
+    (value as PersistedTripData).trip &&
+    Array.isArray((value as PersistedTripData).stops),
   );
 }
 
@@ -465,6 +466,14 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
     setOnboardingOpen(false);
   };
 
+  const handleCloseCompletedTrip = useCallback(() => {
+    setLocalSnapshot(null);
+    setOptimisticTripData(null);
+    clearActiveTripSnapshot();
+    setTripSheetOpen(false);
+    setDesktopTripPanelOpen(false);
+  }, []);
+
   const buildCurrentSnapshot = useCallback((): ActiveTripSnapshot | null => {
     if (!effectiveTripData?.trip) {
       return null;
@@ -509,10 +518,10 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
             ? { type: "skip" as const, tripStopId: action.tripStopId as Id<"tripStops"> }
             : action.type === "moveStop"
               ? {
-                  type: "moveStop" as const,
-                  tripStopId: action.tripStopId as Id<"tripStops">,
-                  direction: action.direction,
-                }
+                type: "moveStop" as const,
+                tripStopId: action.tripStopId as Id<"tripStops">,
+                direction: action.direction,
+              }
               : { type: "setRouteMode" as const, routeMode: action.routeMode };
 
       if (!isOnline) {
@@ -556,10 +565,10 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
               ? { type: "skip" as const, tripStopId: action.tripStopId as Id<"tripStops"> }
               : action.type === "moveStop"
                 ? {
-                    type: "moveStop" as const,
-                    tripStopId: action.tripStopId as Id<"tripStops">,
-                    direction: action.direction,
-                  }
+                  type: "moveStop" as const,
+                  tripStopId: action.tripStopId as Id<"tripStops">,
+                  direction: action.direction,
+                }
                 : { type: "setRouteMode" as const, routeMode: action.routeMode };
 
         try {
@@ -881,53 +890,53 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                   <Search className="size-4" />
                 </button>
 
-              <div className="flex min-w-0 items-center justify-end gap-2">
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setMobileFilterOpen((open) => !open)}
-                    className="inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-full bg-card px-4 text-sm font-medium text-foreground ring-1 ring-border transition-colors active:bg-secondary"
-                    aria-expanded={mobileFilterOpen}
-                    aria-label="Filter places"
-                  >
-                    <SlidersHorizontal className="size-3.5 shrink-0" />
-                    <span>{activeCategory.mobileLabel}</span>
-                    <ChevronDown className={`size-3.5 shrink-0 transition-transform ${mobileFilterOpen ? "rotate-180" : ""}`} />
-                  </button>
+                <div className="flex min-w-0 items-center justify-end gap-2">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setMobileFilterOpen((open) => !open)}
+                      className="inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-full bg-card px-4 text-sm font-medium text-foreground ring-1 ring-border transition-colors active:bg-secondary"
+                      aria-expanded={mobileFilterOpen}
+                      aria-label="Filter places"
+                    >
+                      <SlidersHorizontal className="size-3.5 shrink-0" />
+                      <span>{activeCategory.mobileLabel}</span>
+                      <ChevronDown className={`size-3.5 shrink-0 transition-transform ${mobileFilterOpen ? "rotate-180" : ""}`} />
+                    </button>
 
-                  {mobileFilterOpen ? (
-                    <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-border bg-card p-1">
-                      {categories.map((category) => {
-                        const isActive = activeCat === category.id;
-                        const Icon = category.icon;
-                        return (
-                          <button
-                            key={category.id}
-                            type="button"
-                            onClick={() => {
-                              setActiveCat(category.id);
-                              setMobileFilterOpen(false);
-                            }}
-                            className={[
-                              "flex h-11 w-full items-center gap-2 rounded-full px-3.5 text-left text-sm font-medium transition-colors",
-                              isActive ? "bg-foreground text-background" : "text-foreground hover:bg-secondary",
-                            ].join(" ")}
-                          >
-                            <Icon className="size-4 shrink-0" />
-                            <span>{category.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
+                    {mobileFilterOpen ? (
+                      <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-border bg-card p-1">
+                        {categories.map((category) => {
+                          const isActive = activeCat === category.id;
+                          const Icon = category.icon;
+                          return (
+                            <button
+                              key={category.id}
+                              type="button"
+                              onClick={() => {
+                                setActiveCat(category.id);
+                                setMobileFilterOpen(false);
+                              }}
+                              className={[
+                                "flex h-11 w-full items-center gap-2 rounded-full px-3.5 text-left text-sm font-medium transition-colors",
+                                isActive ? "bg-foreground text-background" : "text-foreground hover:bg-secondary",
+                              ].join(" ")}
+                            >
+                              <Icon className="size-4 shrink-0" />
+                              <span>{category.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                  <AuthStatus
+                    userName={currentUser?.name}
+                    userEmail={currentUser?.email}
+                    onSignIn={() => setAuthOpen(true)}
+                  />
                 </div>
-                <AuthStatus
-                  userName={currentUser?.name}
-                  userEmail={currentUser?.email}
-                  onSignIn={() => setAuthOpen(true)}
-                />
               </div>
-            </div>
             )}
 
             {mobileFilterOpen ? (
@@ -1099,7 +1108,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent sm:hidden" />
                   <div className="relative flex min-h-[11rem] min-w-0 flex-col justify-end p-4 sm:flex-1 sm:min-h-0 sm:justify-start sm:gap-1 sm:p-3">
-                    
+
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-xs font-medium text-white/80 sm:text-muted-foreground">
@@ -1108,7 +1117,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                         </div>
                         <h2 className="mt-1 line-clamp-2 text-2xl font-bold leading-8 text-white sm:text-base sm:font-semibold sm:leading-tight sm:text-foreground">{nextStop.name}</h2>
                       </div>
-                      
+
                       <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-white sm:flex-col sm:items-end sm:gap-0 sm:bg-secondary sm:px-2.5 sm:py-1 sm:text-foreground">
                         <span className="text-sm font-medium leading-none tabular-nums sm:text-xs">
                           {routeMode === "drive" ? nextStop.driveMin : nextStop.walkMin} min
@@ -1213,6 +1222,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
               type: "setRouteMode",
               routeMode: mode,
             })))}
+            onCloseTrip={handleCloseCompletedTrip}
           />
         </div>
       ) : null}
@@ -1290,6 +1300,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
               type: "setRouteMode",
               routeMode: mode,
             })))}
+            onCloseTrip={handleCloseCompletedTrip}
           />
         </DrawerContent>
       </Drawer>
