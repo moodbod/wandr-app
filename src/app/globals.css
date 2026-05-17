@@ -258,10 +258,8 @@
     justify-content: space-around;
     height: calc(3rem + env(safe-area-inset-bottom, 0px));
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    background: hsl(var(--background) / 0.85);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
-    border-top: 0.5px solid hsl(var(--border) / 0.5);
+    background: hsl(var(--background));
+    border-top: 0.5px solid hsl(var(--border));
   }
 
   .wandr-bottom-nav__tab {
