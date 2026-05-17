@@ -45,12 +45,6 @@ type MarkerHandle = {
   marker: Marker;
 };
 
-const categoryInitials: Record<Spot["category"], string> = {
-  eat: "E",
-  see: "S",
-  gems: "G",
-  routes: "R",
-};
 
 function markerTone(spot: Spot) {
   if (spot.category === "gems") {
@@ -339,11 +333,6 @@ const MapboxStreetsMap = ({
       image.decoding = "async";
       image.onload = () => visual.classList.add("wandr-photo-marker__visual--loaded");
       photoWrap.append(image);
-
-      const avatar = document.createElement("span");
-      avatar.className = "wandr-photo-marker__avatar";
-      avatar.textContent = categoryInitials[spot.category];
-      photoWrap.append(avatar);
 
       const stem = document.createElement("span");
       stem.className = "wandr-photo-marker__stem";
