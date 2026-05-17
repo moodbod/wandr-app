@@ -63,15 +63,12 @@
     margin: 0;
     padding: 0;
     background: hsl(var(--background));
-    overscroll-behavior: none;
   }
 
   body {
     @apply text-foreground;
     font-family: Inter, system-ui, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
-    position: fixed;
-    inset: 0;
   }
 }
 
