@@ -1,4 +1,5 @@
 import { X, Footprints, Car, Navigation, MapPin, Plus, Check } from "lucide-react";
+import Link from "next/link";
 import { SpotImage } from "@/components/SpotImage";
 import type { Spot } from "@/data/destinations";
 
@@ -12,7 +13,7 @@ type Props = {
   isInTrip: boolean;
 };
 
-const categoryLabel: Record<Spot["category"], string> = {
+const categoryLabel: Record<string, string> = {
   eat: "Eat",
   see: "See",
   gems: "Hidden gem",
@@ -56,7 +57,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
 
           <div className="absolute bottom-3 left-4 right-4">
             <div className="text-sm font-medium text-background/80">
-              {categoryLabel[spot.category]}
+              {spot.typeLabel ?? categoryLabel[spot.category] ?? "Wandr Pick"}
             </div>
             <h2 id="spot-title" className="mt-0.5 text-3xl font-bold leading-9 text-background">
               {spot.name}
@@ -91,7 +92,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
           {/* Tip */}
           <div className="rounded-2xl bg-secondary p-4">
             <div className="mb-1 text-sm font-medium text-muted-foreground">
-              A local would tell you
+              Good to know
             </div>
             <p className="text-sm leading-relaxed text-foreground/90">{spot.tip}</p>
           </div>
@@ -132,6 +133,12 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
           >
             <Navigation className="size-4" /> Route
           </button>
+          <Link
+            href={`/picks/${spot.slug ?? spot.id}`}
+            className="col-span-2 inline-flex min-h-11 items-center justify-center rounded-full bg-secondary px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            Details
+          </Link>
         </div>
       </div>
     </div>

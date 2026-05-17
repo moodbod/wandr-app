@@ -264,6 +264,60 @@ export const addStop = mutation({
   },
 });
 
+export const startFeaturedPlan = mutation({
+  args: { planId: v.id("featuredTravelPlans") },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const plan = await ctx.db.get(args.planId);
+    if (!plan || plan.status !== "active") {
+      throw new ConvexError("Travel plan not found.");
+    }
+
+    const planStops = await ctx.db
+      .query("featuredTravelPlanStops")
+      .withIndex("by_planId_and_position", (q) => q.eq("planId", args.planId))
+      .order("asc")
+      .take(100);
+
+    if (planStops.length === 0) {
+      throw new ConvexError("This travel plan has no Picks yet.");
+    }
+
+    const now = Date.now();
+    const tripId = await ctx.db.insert("trips", {
+      userId,
+      destinationId: exploreDestinationId,
+      title: plan.title,
+      status: "planning",
+      routeMode: "walk",
+      updatedAt: now,
+    });
+
+    for (const [position, planStop] of planStops.entries()) {
+      const poi = await ctx.db.get(planStop.poiId);
+      if (!poi || poi.status !== "active") {
+        continue;
+      }
+
+      await ctx.db.insert("tripStops", {
+        tripId,
+        destinationId: `${poi.country}-${poi.city}`.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        spotId: poi.slug,
+        position,
+        status: "planned",
+        updatedAt: now,
+      });
+    }
+
+    const trip = await ctx.db.get(tripId);
+    if (!trip) {
+      throw new ConvexError("Could not create trip.");
+    }
+
+    return await getTripPayload(ctx, trip);
+  },
+});
+
 export const removeStop = mutation({
   args: { tripStopId: v.id("tripStops") },
   handler: async (ctx, args) => {

@@ -6,7 +6,7 @@ import { useMutation, useQuery } from "convex/react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import MapboxStreetsMap from "@/components/MapboxStreetsMap";
-import { Search, Coffee, Eye, Gem, Map, Route as RouteIcon, Navigation, SlidersHorizontal, ChevronDown, ListChecks } from "lucide-react";
+import { Search, Coffee, Eye, Gem, Map, Route as RouteIcon, Navigation, SlidersHorizontal, ChevronDown, ListChecks, MapPin, Bed, Utensils, Landmark } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { AuthDialog } from "@/components/AuthDialog";
@@ -23,7 +23,7 @@ import { SpotImage } from "@/components/SpotImage";
 import SpotModal from "@/components/SpotModal";
 import TripPanel from "@/components/TripPanel";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
-import type { Destination, Spot } from "@/data/destinations";
+import type { Destination, Spot, WandrCatalog } from "@/data/destinations";
 import {
   applyOfflineAction,
   createOfflineAction,
@@ -39,13 +39,14 @@ import {
 } from "@/lib/activeTripPersistence";
 import { getCurrentStop, getRouteStopIds, getTripProgress, hasTripSpot, orderedTripStops } from "@/lib/tripPlanner";
 
-const categories = [
+const fallbackCategories = [
   { id: "all", label: "All", mobileLabel: "All", icon: Map },
   { id: "eat", label: "Eat", mobileLabel: "Eat", icon: Coffee },
   { id: "see", label: "See", mobileLabel: "See", icon: Eye },
   { id: "gems", label: "Hidden gems", mobileLabel: "Gems", icon: Gem },
   { id: "routes", label: "Routes", mobileLabel: "Routes", icon: RouteIcon },
 ] as const;
+const typeIcons = { coffee: Coffee, eye: Eye, gem: Gem, route: RouteIcon, bed: Bed, food: Utensils, landmark: Landmark, "map-pin": MapPin } as const;
 
 type GatedAction = () => void;
 
@@ -90,6 +91,10 @@ function isDestinationList(value: unknown): value is Destination[] {
   });
 }
 
+function isWandrCatalog(value: unknown): value is WandrCatalog {
+  return Boolean(value && typeof value === "object" && Array.isArray((value as WandrCatalog).destinations));
+}
+
 function snapshotIdentity(snapshot: ActiveTripSnapshot | null) {
   if (!snapshot) {
     return "";
@@ -109,17 +114,34 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   const isRootRoute = pathname === "/";
   const { position: userPosition } = useUserLocation();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const remoteCatalogData = useQuery(api.content.listPublic, {});
+  const remoteWandrCatalogData = useQuery(api.content.listWandrPicksPublic, {});
+  const remoteLegacyCatalogData = useQuery(api.content.listPublic, {});
   const [catalogData, setCatalogData] = useState<unknown>(() => readCatalogSnapshot());
 
   useEffect(() => {
-    if (remoteCatalogData !== undefined) {
-      setCatalogData(remoteCatalogData);
-      saveCatalogSnapshot(remoteCatalogData);
+    const nextCatalog = isWandrCatalog(remoteWandrCatalogData)
+      ? remoteWandrCatalogData
+      : remoteLegacyCatalogData;
+    if (nextCatalog !== undefined && nextCatalog !== null) {
+      setCatalogData(nextCatalog);
+      saveCatalogSnapshot(nextCatalog);
     }
-  }, [remoteCatalogData]);
+  }, [remoteLegacyCatalogData, remoteWandrCatalogData]);
 
-  const destinations = useMemo(() => (isDestinationList(catalogData) ? catalogData : []), [catalogData]);
+  const catalog = useMemo(() => (isWandrCatalog(catalogData) ? catalogData : null), [catalogData]);
+  const destinations = useMemo(() => catalog?.destinations ?? (isDestinationList(catalogData) ? catalogData : []), [catalog, catalogData]);
+  const categories = useMemo(() => {
+    if (!catalog?.types?.length) return fallbackCategories;
+    return [
+      { id: "all", label: "All", mobileLabel: "All", icon: Map },
+      ...catalog.types.map((type) => ({
+        id: type.slug,
+        label: type.pluralLabel,
+        mobileLabel: type.label,
+        icon: typeIcons[type.icon as keyof typeof typeIcons] ?? MapPin,
+      })),
+    ];
+  }, [catalog?.types]);
   const allSpots = useMemo<ExploreSpot[]>(
     () =>
       destinations.flatMap((destination) =>
@@ -136,7 +158,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   const [localSnapshot, setLocalSnapshot] = useState<ActiveTripSnapshot | null>(() => readActiveTripSnapshot());
   const [optimisticTripData, setOptimisticTripData] = useState<PersistedTripData | null>(null);
   const [offlineQueue, setOfflineQueue] = useState<OfflineTripAction[]>(() => readOfflineTripQueue());
-  const [activeCat, setActiveCat] = useState<(typeof categories)[number]["id"]>("all");
+  const [activeCat, setActiveCat] = useState<string>("all");
   const [fallbackNextStopId, setFallbackNextStopId] = useState<string | null>(localSnapshot?.routedSpotId ?? null);
   const [openSpotId, setOpenSpotId] = useState<string | null>(null);
   const [fallbackRouteMode, setFallbackRouteMode] = useState<"walk" | "drive">("walk");
@@ -156,12 +178,13 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   const removeTripStop = useMutation(api.trips.removeStop);
   const setNextTripStop = useMutation(api.trips.setNextStop);
   const startTrip = useMutation(api.trips.startTrip);
+  const startFeaturedPlan = useMutation(api.trips.startFeaturedPlan);
   const syncOfflineAction = useMutation(api.trips.syncOfflineAction);
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const syncingRef = useRef(false);
 
   const visibleSpots = useMemo(
-    () => allSpots.filter((s) => activeCat === "all" || activeCat === "routes" || s.category === activeCat),
+    () => allSpots.filter((s) => activeCat === "all" || s.category === activeCat),
     [allSpots, activeCat]
   );
 
@@ -189,6 +212,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
     allSpots.find((s) => s.id === openSpotId) ?? null;
   const routeMode = effectiveTripData?.trip.routeMode ?? fallbackRouteMode;
   const activeCategory = categories.find((category) => category.id === activeCat) ?? categories[0];
+  const featuredPlans = catalog?.featuredPlans ?? [];
   const tripProgress = getTripProgress(tripStops);
   const hasDesktopTripPanel = tripProgress.total > 0;
   const showDesktopTripPanel = hasDesktopTripPanel && desktopTripPanelOpen;
@@ -525,6 +549,18 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
     [runGatedAction]
   );
 
+  const handleStartFeaturedPlan = useCallback(
+    (planId: string) => {
+      runGatedAction(() => {
+        void startFeaturedPlan({ planId: planId as Id<"featuredTravelPlans"> }).then((payload) => {
+          setOptimisticTripData(payload);
+          setTripSheetOpen(true);
+        });
+      });
+    },
+    [runGatedAction, startFeaturedPlan],
+  );
+
   const handleSetNextStop = useCallback(
     (spot: ExploreSpot) => {
       runGatedAction(() => {
@@ -607,7 +643,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
     setIsMounted(true);
   }, []);
 
-  if (!isMounted || catalogData === undefined || (catalogData === null && remoteCatalogData === undefined)) {
+  if (!isMounted || catalogData === undefined || (catalogData === null && remoteWandrCatalogData === undefined && remoteLegacyCatalogData === undefined)) {
     return <ExploreLoadingSkeleton children={children} />;
   }
 
@@ -772,6 +808,22 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                 );
               })}
             </div>
+
+            {featuredPlans.length > 0 ? (
+              <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
+                {featuredPlans.slice(0, 4).map((plan) => (
+                  <button
+                    key={plan._id}
+                    type="button"
+                    onClick={() => handleStartFeaturedPlan(plan._id)}
+                    className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-card px-4 py-2.5 text-sm font-medium text-foreground ring-1 ring-border transition-colors hover:bg-secondary"
+                  >
+                    <RouteIcon className="size-3.5" />
+                    {plan.title}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </header>
@@ -822,7 +874,16 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
               </div>
 
               <div
-                className="wandr-recommendation-card group mx-auto w-full overflow-hidden rounded-2xl bg-foreground text-left text-background ring-1 ring-border transition-transform active:scale-[0.99] sm:max-w-xl sm:bg-card sm:text-foreground"
+                onClick={() => setOpenSpotId(nextStop.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setOpenSpotId(nextStop.id);
+                  }
+                }}
+                className="wandr-recommendation-card group mx-auto w-full overflow-hidden rounded-2xl bg-foreground text-left text-background ring-1 ring-border transition-transform active:scale-[0.99] sm:max-w-xl sm:bg-card sm:text-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div className="relative min-h-[11rem] sm:flex sm:items-stretch sm:min-h-[8.5rem]">
                   <div className="absolute inset-0 sm:relative sm:w-[8.5rem] sm:shrink-0 sm:min-h-[8.5rem]">
@@ -841,6 +902,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-xs font-medium text-white/80 sm:text-muted-foreground">
+                          {isInactiveRecommendation ? <span className="sr-only">You might like this</span> : null}
                           {isInactiveRecommendation ? "Featured" : stopCardLabel}
                         </div>
                         <h2 className="mt-1 line-clamp-2 text-2xl font-bold leading-8 text-white sm:text-base sm:font-semibold sm:leading-tight sm:text-foreground">{nextStop.name}</h2>
@@ -860,15 +922,11 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                       <div className="mt-3 flex flex-wrap gap-2 sm:mt-auto sm:gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setOpenSpotId(nextStop.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            runGatedAction(() => setRouteOpen(true));
+                          }}
                           className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-white/90 sm:min-h-8 sm:h-8 sm:px-3 sm:py-1 sm:text-xs sm:bg-foreground sm:text-background sm:hover:bg-foreground/80"
-                        >
-                          <Eye className="size-4 sm:size-3.5" /> View spot
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => runGatedAction(() => setRouteOpen(true))}
-                          className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white/15 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/25 sm:min-h-8 sm:h-8 sm:px-3 sm:py-1 sm:text-xs sm:bg-secondary sm:text-foreground sm:hover:bg-muted"
                         >
                           <Navigation className="size-4 sm:size-3.5" /> Route
                         </button>
@@ -876,7 +934,8 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                     ) : (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (isPlanningTrip) {
                             handleStartRoute(nextStop);
                             return;
@@ -895,7 +954,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
             </div>
           ) : (
             <div className="wandr-bottom-surface rounded-2xl bg-card p-5 text-center text-sm text-muted-foreground ring-1 ring-border">
-              No spots in this category yet.
+              No Wandr Picks yet.
             </div>
           )}
         </div>

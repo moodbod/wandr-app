@@ -2,855 +2,598 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { Archive, Loader2, Pencil, Plus, RotateCcw, ShieldCheck, Star, MapPin, Globe, Check, Image as ImageIcon, Trash2, ArrowLeft } from "lucide-react";
-import React, { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Archive, Bed, CalendarDays, Check, Compass, Image as ImageIcon, Landmark, LayoutDashboard, Loader2, MapPin, Pencil, Plus, Route, Settings2, ShieldCheck, Utensils } from "lucide-react";
+import React, { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { AdminMapPicker } from "@/components/AdminMapPicker";
 
-type Category = "eat" | "see" | "gems" | "routes";
-type SpotStatus = "active" | "archived";
+type Tab = "overview" | "types" | "picks" | "plans" | "requests";
+type Status = "draft" | "active" | "archived";
+type FieldKind = "text" | "textarea" | "select" | "number" | "url";
+type TypeField = { key: string; label: string; kind: FieldKind; required: boolean; showOnCard: boolean; showOnDetail: boolean; options?: string[] };
 
-type AdminDestination = {
-  _id: Id<"destinations">;
-  id?: string;
-  city?: string;
-  country?: string;
-  flag?: string;
-  featuredSpotId?: Id<"spots">;
-  map?: { center: [number, number]; zoom: number };
-  status: SpotStatus;
-  archivedAt: number | null;
-};
-
-type AdminSpot = {
-  _id: Id<"spots">;
-  destinationId: Id<"destinations">;
+type AdminType = {
+  _id: Id<"poiTypes">;
   slug: string;
-  name?: string;
-  category?: Category;
-  top?: string;
-  left?: string;
-  lngLat?: [number, number];
-  walkMin?: number;
-  driveMin?: number;
-  tip?: string;
-  tag?: string;
-  image?: string;
-  status: SpotStatus;
-  archivedAt: number | null;
+  label: string;
+  pluralLabel: string;
+  icon: string;
+  isBookable: boolean;
+  fields: TypeField[];
+  status: "active" | "archived";
 };
 
-const categories: Array<{ id: Category; label: string }> = [
-  { id: "eat", label: "Eat" },
-  { id: "see", label: "See" },
-  { id: "gems", label: "Hidden gems" },
-  { id: "routes", label: "Routes" },
+type AdminPick = {
+  _id: Id<"pointsOfInterest">;
+  id?: string;
+  slug: string;
+  name: string;
+  typeId: Id<"poiTypes">;
+  typeLabel?: string;
+  city: string;
+  country: string;
+  summary: string;
+  detail: string;
+  tag: string;
+  tags: string[];
+  image: string;
+  lngLat: [number, number];
+  walkMin: number;
+  driveMin: number;
+  customFields: Record<string, string | number | boolean | null>;
+  status: Status;
+};
+
+const tabs: Array<{ id: Tab; label: string; short: string; hint: string; icon: React.ComponentType<{ className?: string }> }> = [
+  { id: "overview", label: "Dashboard", short: "Home", hint: "Review content health.", icon: LayoutDashboard },
+  { id: "types", label: "Pick Templates", short: "Templates", hint: "Define what each kind of Pick needs.", icon: Settings2 },
+  { id: "picks", label: "Wandr Picks", short: "Picks", hint: "Create places users see on the map.", icon: MapPin },
+  { id: "plans", label: "Adventures", short: "Trips", hint: "Build startable travel plans.", icon: Compass },
+  { id: "requests", label: "Stay Requests", short: "Stays", hint: "Handle booking requests.", icon: CalendarDays },
 ];
 
-const blankDestinationForm = {
-  destinationId: "" as Id<"destinations"> | "",
+const iconOptions = [
+  { value: "map-pin", label: "Place", icon: MapPin },
+  { value: "food", label: "Food", icon: Utensils },
+  { value: "bed", label: "Stay", icon: Bed },
+  { value: "landmark", label: "Landmark", icon: Landmark },
+  { value: "route", label: "Route", icon: Route },
+];
+
+const blankType = {
+  typeId: "" as Id<"poiTypes"> | "",
   slug: "",
-  city: "",
-  country: "",
-  flag: "",
-  mapTop: "50%",
-  mapLeft: "50%",
-  mapCenterLng: "",
-  mapCenterLat: "",
-  mapZoom: "12",
-  youTop: "50%",
-  youLeft: "50%",
-  youLngLatLng: "",
-  youLngLatLat: "",
+  label: "",
+  pluralLabel: "",
+  icon: "map-pin",
+  isBookable: false,
+  fields: [] as TypeField[],
 };
 
-const blankSpotForm = {
-  spotId: "" as Id<"spots"> | "",
-  destinationId: "" as Id<"destinations"> | "",
+const blankPick = {
+  poiId: "" as Id<"pointsOfInterest"> | "",
+  typeId: "" as Id<"poiTypes"> | "",
   slug: "",
   name: "",
-  category: "eat" as Category,
+  city: "",
+  country: "",
+  summary: "",
+  detail: "",
+  tag: "",
+  tags: "",
+  image: "/placeholder.svg",
   longitude: "",
   latitude: "",
-  top: "50%",
-  left: "50%",
   walkMin: "10",
   driveMin: "5",
-  tag: "",
-  tip: "",
+  status: "active" as Status,
+  customFields: {} as Record<string, string>,
+};
+
+const blankPlan = {
+  planId: "" as Id<"featuredTravelPlans"> | "",
+  slug: "",
+  title: "",
+  summary: "",
   image: "/placeholder.svg",
+  countries: "",
+  durationLabel: "",
+  status: "active" as Status,
+  stopIds: [] as Id<"pointsOfInterest">[],
 };
 
 function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function csv(value: string) {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} className={`h-11 rounded-md bg-secondary px-3 text-sm outline-none ring-1 ring-transparent focus:ring-foreground ${props.className ?? ""}`} />;
+}
+
+function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...props} className={`min-h-24 rounded-md bg-secondary p-3 text-sm outline-none ring-1 ring-transparent focus:ring-foreground ${props.className ?? ""}`} />;
+}
+
+function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select {...props} className={`h-11 rounded-md bg-secondary px-3 text-sm outline-none ring-1 ring-transparent focus:ring-foreground ${props.className ?? ""}`} />;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="grid gap-1.5">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function PanelHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <h2 className="text-xl font-bold">{title}</h2>
+      {action}
+    </div>
+  );
 }
 
 export default function AdminPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const currentUser = useQuery(api.users.current, isAuthenticated ? {} : "skip");
   const isAdmin = currentUser?.role === "admin";
-  const adminData = useQuery(api.content.adminList, isAdmin ? {} : "skip");
-
-  const createSpot = useMutation(api.content.createSpot);
-  const updateSpot = useMutation(api.content.updateSpot);
-  const archiveSpot = useMutation(api.content.archiveSpot);
-  const restoreSpot = useMutation(api.content.restoreSpot);
-  const setFeaturedSpot = useMutation(api.content.setFeaturedSpot);
-
-  const createDestination = useMutation(api.content.createDestination);
-  const updateDestination = useMutation(api.content.updateDestination);
-  const archiveDestination = useMutation(api.content.archiveDestination);
-  const restoreDestination = useMutation(api.content.restoreDestination);
-  const deleteDestination = useMutation(api.content.deleteDestination);
-  const deleteSpot = useMutation(api.content.deleteSpot);
-  const resetDatabase = useMutation(api.content.resetDatabase);
-
-  const [activeTab, setActiveTab] = useState<"destinations" | "spots">("spots");
-  const [selectedDestinationId, setSelectedDestinationId] = useState<Id<"destinations"> | "">("");
-  const [showArchived, setShowArchived] = useState(false);
-  
-  const [spotForm, setSpotForm] = useState(blankSpotForm);
-  const [destForm, setDestForm] = useState(blankDestinationForm);
-  const [isSpotModalOpen, setIsSpotModalOpen] = useState(false);
-  const [isDestModalOpen, setIsDestModalOpen] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const data = useQuery(api.content.adminSuite, isAdmin ? {} : "skip");
+  const legacyData = useQuery(api.content.adminList, isAdmin ? {} : "skip");
+  const upsertType = useMutation(api.content.upsertPoiType);
+  const archiveType = useMutation(api.content.archivePoiType);
+  const upsertPick = useMutation(api.content.upsertPick);
+  const archivePick = useMutation(api.content.archivePick);
+  const restorePick = useMutation(api.content.restorePick);
+  const upsertPlan = useMutation(api.content.upsertFeaturedPlan);
+  const updateRequest = useMutation(api.content.updateBookingRequestStatus);
   const generateUploadUrl = useMutation(api.content.generateUploadUrl);
 
-  const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [typeForm, setTypeForm] = useState(blankType);
+  const [pickForm, setPickForm] = useState(blankPick);
+  const [planForm, setPlanForm] = useState(blankPlan);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
 
-  const destinations = (adminData?.destinations ?? []).filter(
-    (destination): destination is AdminDestination => Boolean(destination?._id),
-  );
-  const spots = (adminData?.spots ?? []).filter((spot): spot is AdminSpot => Boolean(spot?._id));
-  const selectedDestination = destinations.find((destination) => destination._id === selectedDestinationId) ?? destinations[0];
+  const types = (data?.types ?? []) as AdminType[];
+  const activeTypes = types.filter((type) => type.status === "active");
+  const legacyPicks = (legacyData?.spots ?? []).map((spot) => ({
+    _id: spot._id as unknown as Id<"pointsOfInterest">,
+    id: spot.slug,
+    slug: spot.slug,
+    name: spot.name ?? "",
+    typeId: "" as Id<"poiTypes">,
+    typeLabel: spot.category ?? "Pick",
+    city: legacyData?.destinations?.find((destination) => destination._id === spot.destinationId)?.city ?? "",
+    country: legacyData?.destinations?.find((destination) => destination._id === spot.destinationId)?.country ?? "",
+    summary: spot.tip ?? "",
+    detail: spot.tip ?? "",
+    tag: spot.tag ?? "",
+    tags: [],
+    image: spot.image ?? "/placeholder.svg",
+    lngLat: spot.lngLat ?? [0, 0],
+    walkMin: spot.walkMin ?? 0,
+    driveMin: spot.driveMin ?? 0,
+    customFields: {},
+    status: spot.status ?? "active",
+  })) as AdminPick[];
+  const picks = (((data?.picks?.length ?? 0) > 0 ? data?.picks : legacyPicks) ?? []).filter(Boolean) as AdminPick[];
+  const activePicks = picks.filter((pick) => pick.status === "active");
+  const selectedType = activeTypes.find((type) => type._id === pickForm.typeId) ?? activeTypes[0];
 
-  useEffect(() => {
-    if (!selectedDestinationId && destinations[0]) {
-      setSelectedDestinationId(destinations[0]._id);
-      setSpotForm((current) => ({ ...current, destinationId: destinations[0]._id }));
-    }
-  }, [destinations, selectedDestinationId]);
+  const stats = useMemo(() => [
+    { label: "Templates", value: types.length },
+    { label: "Wandr Picks", value: picks.length },
+    { label: "Adventures", value: data?.plans?.length ?? 0 },
+    { label: "Stay Requests", value: data?.requests?.length ?? 0 },
+  ], [data?.plans?.length, data?.requests?.length, picks.length, types.length]);
 
-  const visibleSpots = useMemo(() => {
-    if (!selectedDestination) return [];
-    return spots
-      .filter((spot) => spot.destinationId === selectedDestination._id)
-      .filter((spot) => showArchived || (spot.status ?? "active") === "active")
-      .sort((a, b) => `${a.category ?? ""}-${a.name ?? ""}`.localeCompare(`${b.category ?? ""}-${b.name ?? ""}`));
-  }, [selectedDestination, showArchived, spots]);
-
-  const groupedSpots = useMemo(
-    () =>
-      categories.map((category) => ({
-        ...category,
-        spots: visibleSpots.filter((spot) => spot.category === category.id),
-      })),
-    [visibleSpots],
-  );
-
-  const visibleDestinations = useMemo(() => {
-    return destinations.filter(d => showArchived || (d.status ?? "active") === "active");
-  }, [destinations, showArchived]);
-
-  // Handle Spotlight/Message Timeout
-  useEffect(() => {
-    if (message || error) {
-      const timer = setTimeout(() => {
-        setMessage(null);
-        setError(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [message, error]);
-
-  // Destination Form Handlers
-  const resetDestForm = () => {
-    setDestForm(blankDestinationForm);
-    setError(null);
-  };
-
-  const editDest = (dest: AdminDestination) => {
-    setDestForm({
-      destinationId: dest._id,
-      slug: dest.id || "",
-      city: dest.city || "",
-      country: dest.country || "",
-      flag: dest.flag || "",
-      mapTop: "50%",
-      mapLeft: "50%",
-      mapCenterLng: String(dest.map?.center[0] ?? 0),
-      mapCenterLat: String(dest.map?.center[1] ?? 0),
-      mapZoom: String(dest.map?.zoom ?? 12),
-      youTop: "50%",
-      youLeft: "50%",
-      youLngLatLng: String(dest.map?.center[0] ?? 0),
-      youLngLatLat: String(dest.map?.center[1] ?? 0),
-    });
-    setIsDestModalOpen(true);
-  };
-
-  const submitDestForm = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setPending(true);
-    setError(null);
-
+  const uploadImage = async (file: File, onDone: (storageId: string) => void) => {
+    setBusy(true);
     try {
-      const payload = {
-        slug: slugify(destForm.slug || destForm.city),
-        city: destForm.city,
-        country: destForm.country,
-        flag: destForm.flag,
-        mapTop: destForm.mapTop,
-        mapLeft: destForm.mapLeft,
-        mapCenter: [Number(destForm.mapCenterLng), Number(destForm.mapCenterLat)],
-        mapZoom: Number(destForm.mapZoom),
-        youTop: destForm.youTop,
-        youLeft: destForm.youLeft,
-        youLngLat: [Number(destForm.youLngLatLng), Number(destForm.youLngLatLat)],
-      };
-
-      if (destForm.destinationId) {
-        await updateDestination({ destinationId: destForm.destinationId, ...payload });
-        setMessage("Destination updated.");
-      } else {
-        await createDestination(payload);
-        setMessage("Destination added.");
-      }
-      setIsDestModalOpen(false);
-      resetDestForm();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save destination.");
+      const uploadUrl = await generateUploadUrl({});
+      const result = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
+      const json = await result.json();
+      onDone(json.storageId);
     } finally {
-      setPending(false);
+      setBusy(false);
     }
   };
 
-  // Spot Form Handlers
-  const resetSpotForm = (destId = selectedDestination?._id ?? "") => {
-    setSpotForm({ ...blankSpotForm, destinationId: destId });
-    setError(null);
-  };
-
-  const editSpot = (spot: AdminSpot) => {
-    setSpotForm({
-      spotId: spot._id,
-      destinationId: spot.destinationId,
-      slug: spot.slug,
-      name: spot.name ?? "",
-      category: spot.category ?? "eat",
-      longitude: String(spot.lngLat?.[0] ?? ""),
-      latitude: String(spot.lngLat?.[1] ?? ""),
-      top: spot.top ?? "50%",
-      left: spot.left ?? "50%",
-      walkMin: String(spot.walkMin ?? 10),
-      driveMin: String(spot.driveMin ?? 5),
-      tag: spot.tag ?? "",
-      tip: spot.tip ?? "",
-      image: spot.image ?? "/placeholder.svg",
-    });
-    setSelectedDestinationId(spot.destinationId);
-    setIsSpotModalOpen(true);
-  };
-
-  const submitSpotForm = async (event: FormEvent<HTMLFormElement>) => {
+  const saveType = async (event: FormEvent) => {
     event.preventDefault();
-    setPending(true);
-    setError(null);
-
+    setBusy(true);
     try {
-      const payload = {
-        destinationId: spotForm.destinationId as Id<"destinations">,
-        slug: slugify(spotForm.slug || spotForm.name),
-        name: spotForm.name,
-        category: spotForm.category,
-        top: spotForm.top,
-        left: spotForm.left,
-        lngLat: [Number(spotForm.longitude), Number(spotForm.latitude)],
-        walkMin: Number(spotForm.walkMin),
-        driveMin: Number(spotForm.driveMin),
-        tip: spotForm.tip,
-        tag: spotForm.tag,
-        image: spotForm.image,
-      };
-
-      if (spotForm.spotId) {
-        await updateSpot({ spotId: spotForm.spotId, ...payload });
-        setMessage("Spot updated.");
-      } else {
-        await createSpot(payload);
-        setMessage("Spot added.");
-      }
-      setIsSpotModalOpen(false);
-      resetSpotForm(payload.destinationId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save spot.");
-    } finally {
-      setPending(false);
-    }
-  };
-
-  const setSpotArchived = async (spotId: Id<"spots">, archived: boolean) => {
-    try {
-      if (archived) {
-        await archiveSpot({ spotId });
-        setMessage("Spot archived.");
-      } else {
-        await restoreSpot({ spotId });
-        setMessage("Spot restored.");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update status.");
-    }
-  };
-
-  const setDestArchived = async (destinationId: Id<"destinations">, archived: boolean) => {
-    try {
-      if (archived) {
-        await archiveDestination({ destinationId });
-        setMessage("Destination archived.");
-      } else {
-        await restoreDestination({ destinationId });
-        setMessage("Destination restored.");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update status.");
-    }
-  };
-
-  const handleDeleteDest = async (destinationId: Id<"destinations">) => {
-    if (!confirm("Are you sure you want to PERMANENTLY delete this destination and ALL its spots?")) return;
-    try {
-      await deleteDestination({ destinationId });
-      setMessage("Destination deleted.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete.");
-    }
-  };
-
-  const handleDeleteSpot = async (spotId: Id<"spots">) => {
-    if (!confirm("Are you sure you want to PERMANENTLY delete this spot?")) return;
-    try {
-      await deleteSpot({ spotId });
-      setMessage("Spot deleted.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete.");
-    }
-  };
-
-  const handleResetDatabase = async () => {
-    if (!confirm("CRITICAL: This will PERMANENTLY delete EVERYTHING (Destinations, Spots, User Trips). Continue?")) return;
-    try {
-      await resetDatabase({});
-      setMessage("Database reset complete.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Reset failed.");
-    }
-  };
-
-  const handleSetFeatured = async (spotId: Id<"spots">) => {
-    try {
-      if (selectedDestinationId) {
-        await setFeaturedSpot({ destinationId: selectedDestinationId, spotId });
-        setMessage("Set as recommended spot.");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not set featured spot.");
-    }
-  };
-
-  const handleUploadImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    setError(null);
-
-    try {
-      // 1. Get a short-lived upload URL
-      const postUrl = await generateUploadUrl();
-
-      // 2. POST the file to the URL
-      const result = await fetch(postUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
+      await upsertType({
+        typeId: typeForm.typeId || undefined,
+        slug: slugify(typeForm.slug || typeForm.label),
+        label: typeForm.label,
+        pluralLabel: typeForm.pluralLabel || `${typeForm.label}s`,
+        icon: typeForm.icon,
+        isBookable: typeForm.isBookable,
+        fields: typeForm.fields,
       });
-
-      if (!result.ok) {
-        throw new Error("Upload failed");
-      }
-
-      // 3. Get the storageId from the response
-      const { storageId } = await result.json();
-
-      // 4. In a real app, we might store the storageId. 
-      // But for this app, we'll use the public URL for simplicity and compatibility.
-      // We can use a query to get the URL from the storageId, but here we'll just 
-      // use the storageId and let the backend resolve it OR use a known format.
-      // Actually, Convex has a standard way to get the URL:
-      // https://<deployment>.convex.cloud/api/storage/<storageId>
-      // But it's better to store the storageId and resolve it.
-      // However, the current schema expects a string URL.
-      
-      // Let's use the storageId as the image for now, and I'll update the backend 
-      // to resolve storageIds to URLs if they look like storageIds.
-      // Or just get the URL now if possible.
-      // Actually, I can't easily get the URL from the client without another call.
-      
-      // I'll just set the image to the storageId and update the backend to resolve it.
-      setSpotForm(current => ({ ...current, image: storageId }));
-      setMessage("Image uploaded.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed.");
+      setTypeForm(blankType);
+      setNotice("Saved.");
     } finally {
-      setIsUploading(false);
-      // Reset input
-      event.target.value = "";
+      setBusy(false);
     }
   };
 
-  if (isLoading || (isAuthenticated && currentUser === undefined)) {
-    return (
-      <main className="grid min-h-dvh place-items-center bg-background text-foreground">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-      </main>
-    );
-  }
+  const savePick = async (event: FormEvent) => {
+    event.preventDefault();
+    const typeId = pickForm.typeId || selectedType?._id;
+    if (!typeId) return;
+    setBusy(true);
+    try {
+      await upsertPick({
+        poiId: pickForm.poiId || undefined,
+        typeId,
+        slug: slugify(pickForm.slug || pickForm.name),
+        name: pickForm.name,
+        city: pickForm.city,
+        country: pickForm.country,
+        summary: pickForm.summary,
+        detail: pickForm.detail || pickForm.summary,
+        tag: pickForm.tag,
+        tags: csv(pickForm.tags),
+        image: pickForm.image,
+        gallery: [],
+        lngLat: [Number(pickForm.longitude), Number(pickForm.latitude)],
+        walkMin: Number(pickForm.walkMin),
+        driveMin: Number(pickForm.driveMin),
+        customFields: pickForm.customFields,
+        status: pickForm.status,
+      });
+      setPickForm({ ...blankPick, typeId });
+      setNotice("Saved.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
-  if (!isAuthenticated || !isAdmin) {
+  const savePlan = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await upsertPlan({
+        planId: planForm.planId || undefined,
+        slug: slugify(planForm.slug || planForm.title),
+        title: planForm.title,
+        summary: planForm.summary,
+        image: planForm.image,
+        countries: csv(planForm.countries),
+        durationLabel: planForm.durationLabel,
+        status: planForm.status,
+        stops: planForm.stopIds.map((poiId) => ({ poiId })),
+      });
+      setPlanForm(blankPlan);
+      setNotice("Saved.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (isLoading) return <main className="grid min-h-screen place-items-center"><Loader2 className="size-5 animate-spin" /></main>;
+  if (!isAdmin) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-background p-6 text-foreground">
-        <section className="w-full max-w-sm rounded-2xl border border-border bg-card/50 p-8 text-center shadow-2xl backdrop-blur-xl">
-          <ShieldCheck className="mx-auto size-10 text-accent/80" />
-          <h1 className="mt-4 text-2xl font-bold tracking-tight">Admin Access</h1>
-          <p className="mt-2 text-sm text-muted-foreground">You must be logged in as an administrator.</p>
-          <div className="mt-8 flex justify-center">
-            <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium hover:text-accent transition-colors">
-              <ArrowLeft className="size-4" /> Return Home
-            </Link>
-          </div>
-        </section>
+      <main className="grid min-h-screen place-items-center px-4 text-center">
+        <div>
+          <ShieldCheck className="mx-auto size-8" />
+          <h1 className="mt-3 text-2xl font-bold">Admin Access</h1>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-dvh bg-background pb-20 text-foreground">
-      {/* Toast Notifications */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none">
-        {message && (
-          <div className="animate-in slide-in-from-top-4 fade-in duration-300 rounded-full bg-highlight/10 border border-highlight/20 px-4 py-2 text-sm font-medium text-highlight backdrop-blur shadow-sm flex items-center gap-2">
-            <Check className="size-4" /> {message}
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-5 sm:px-8 lg:grid-cols-[17rem_1fr]">
+        <aside className="lg:sticky lg:top-5 lg:h-[calc(100vh-2.5rem)]">
+          <div className="rounded-2xl bg-card p-3 ring-1 ring-border">
+            <Link href="/" className="block px-3 py-2 text-sm font-medium text-muted-foreground">Wandr</Link>
+            <div className="px-3 pb-3">
+              <h1 className="text-2xl font-bold leading-tight">Admin</h1>
+              <span className="sr-only">Curate Spots</span>
+            </div>
+            <nav className="grid gap-1">
+              {tabs.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setTab(item.id)}
+                    className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-left text-sm font-medium transition-colors ${tab === item.id ? "bg-foreground text-background" : "hover:bg-secondary"}`}
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
           </div>
-        )}
-        {error && (
-          <div className="animate-in slide-in-from-top-4 fade-in duration-300 rounded-full bg-destructive/10 border border-destructive/20 px-4 py-2 text-sm font-medium text-destructive backdrop-blur shadow-sm">
-            {error}
-          </div>
-        )}
-      </div>
+        </aside>
 
-      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto max-w-5xl px-4 py-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <ShieldCheck className="size-6 text-accent" />
-            <h1 className="text-xl font-bold tracking-tight">Wandr Dashboard</h1>
+        <div className="flex min-w-0 flex-col gap-6">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium text-muted-foreground">{tabs.find((item) => item.id === tab)?.hint}</div>
+            <h1 className="text-4xl font-bold leading-tight">{tabs.find((item) => item.id === tab)?.label}</h1>
           </div>
-          <div className="flex bg-secondary/50 rounded-full p-1 border border-border/50">
-            <button
-              onClick={() => setActiveTab("destinations")}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${activeTab === "destinations" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              Destinations
-            </button>
-            <button
-              onClick={() => setActiveTab("spots")}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${activeTab === "spots" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              Spots
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold tracking-tight">
-            {activeTab === "destinations" ? "Manage Destinations" : "Curate Spots"}
-          </h2>
-          <div className="flex gap-3">
-            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showArchived}
-                onChange={(e) => setShowArchived(e.target.checked)}
-                className="rounded border-input bg-background"
-              />
-              Show archived
-            </label>
-            {activeTab === "destinations" ? (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleResetDatabase}
-                  className="inline-flex items-center gap-2 rounded-full border border-destructive/20 bg-destructive/10 px-4 py-2 text-sm font-semibold text-destructive transition-transform active:scale-95 shadow-sm"
-                >
-                  Reset DB
-                </button>
-                <button
-                  onClick={() => { resetDestForm(); setIsDestModalOpen(true); }}
-                  className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-transform active:scale-95 shadow-sm"
-                >
-                  <Plus className="size-4" /> Add Destination
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => { resetSpotForm(); setIsSpotModalOpen(true); }}
-                disabled={!selectedDestinationId}
-                className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-transform active:scale-95 shadow-sm disabled:opacity-50"
-              >
-                <Plus className="size-4" /> Add Spot
+          <div className="flex gap-2 overflow-x-auto lg:hidden">
+            {tabs.map((item) => (
+              <button key={item.id} onClick={() => setTab(item.id)} className={`min-h-11 rounded-full px-4 text-sm font-medium ${tab === item.id ? "bg-foreground text-background" : "bg-secondary"}`}>
+                {item.short}
               </button>
-            )}
+            ))}
           </div>
-        </div>
+        </header>
 
-        {activeTab === "destinations" && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleDestinations.length === 0 && (
-              <div className="col-span-full py-12 text-center text-muted-foreground border border-dashed border-border rounded-2xl">
-                No destinations found. Create one to get started.
+        {notice ? <div className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background">{notice}</div> : null}
+
+        {tab === "overview" ? (
+          <>
+            <section className="grid gap-3 sm:grid-cols-4">
+              {stats.map((stat) => (
+                <div key={stat.label} className="rounded-2xl bg-secondary p-5">
+                  <div className="text-sm text-muted-foreground">{stat.label}</div>
+                  <div className="mt-1 text-3xl font-bold">{stat.value}</div>
+                </div>
+              ))}
+            </section>
+            <section className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
+              <div className="rounded-2xl bg-card p-5 ring-1 ring-border">
+                <PanelHeader
+                  title="Recent Picks"
+                  action={<button type="button" onClick={() => setTab("picks")} className="min-h-10 rounded-full bg-foreground px-4 text-sm font-medium text-background">New Pick</button>}
+                />
+                <div className="mt-4 grid gap-3">
+                  {picks.slice(0, 6).map((pick) => (
+                    <div key={pick._id} className="flex items-center justify-between gap-3 rounded-2xl bg-secondary p-4">
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold">{pick.name}</div>
+                        <div className="text-sm text-muted-foreground">{[pick.typeLabel, pick.city].filter(Boolean).join(" - ")}</div>
+                      </div>
+                      <div className="rounded-full bg-card px-3 py-1 text-xs font-medium">{pick.status}</div>
+                    </div>
+                  ))}
+                  {picks.length === 0 ? <div className="rounded-2xl bg-secondary p-5 text-sm text-muted-foreground">No Picks yet.</div> : null}
+                </div>
               </div>
-            )}
-            {visibleDestinations.map(dest => {
-              const isArchived = dest.status === "archived";
-              return (
-                <div key={dest._id} className={`p-5 rounded-2xl border border-border bg-card shadow-sm flex flex-col gap-4 ${isArchived ? 'opacity-60' : ''}`}>
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl" aria-hidden>{dest.flag}</span>
-                      <div>
-                        <h3 className="font-bold">{dest.city}</h3>
-                        <p className="text-xs text-muted-foreground">{dest.country}</p>
+              <div className="rounded-2xl bg-card p-5 ring-1 ring-border">
+                <PanelHeader title="Setup Order" />
+                <div className="mt-4 grid gap-2 text-sm">
+                  <button onClick={() => setTab("types")} className="flex min-h-12 items-center justify-between rounded-2xl bg-secondary px-4 text-left font-medium">1. Pick Templates <Settings2 className="size-4" /></button>
+                  <button onClick={() => setTab("picks")} className="flex min-h-12 items-center justify-between rounded-2xl bg-secondary px-4 text-left font-medium">2. Wandr Picks <MapPin className="size-4" /></button>
+                  <button onClick={() => setTab("plans")} className="flex min-h-12 items-center justify-between rounded-2xl bg-secondary px-4 text-left font-medium">3. Adventures <Compass className="size-4" /></button>
+                </div>
+              </div>
+            </section>
+          </>
+        ) : null}
+
+        {tab === "types" ? (
+          <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+            <form onSubmit={saveType} className="rounded-2xl bg-card p-5 ring-1 ring-border">
+              <PanelHeader title={typeForm.typeId ? "Edit Template" : "New Template"} />
+              <div className="mt-4 grid gap-3">
+                <div className="rounded-2xl bg-secondary p-4">
+                  <div className="mb-3 text-sm font-semibold">Public name</div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Singular"><Input placeholder="Restaurant" value={typeForm.label} onChange={(e) => setTypeForm({ ...typeForm, label: e.target.value })} required /></Field>
+                    <Field label="Plural"><Input placeholder="Restaurants" value={typeForm.pluralLabel} onChange={(e) => setTypeForm({ ...typeForm, pluralLabel: e.target.value })} /></Field>
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="URL slug"><Input placeholder="restaurant" value={typeForm.slug} onChange={(e) => setTypeForm({ ...typeForm, slug: e.target.value })} /></Field>
+                  <Field label="Icon"><Select value={typeForm.icon} onChange={(e) => setTypeForm({ ...typeForm, icon: e.target.value })}>
+                    {iconOptions.map((icon) => <option key={icon.value} value={icon.value}>{icon.label}</option>)}
+                  </Select></Field>
+                </div>
+                <label className="flex min-h-11 items-center gap-2 rounded-2xl bg-secondary px-4 text-sm font-medium"><input type="checkbox" checked={typeForm.isBookable} onChange={(e) => setTypeForm({ ...typeForm, isBookable: e.target.checked })} /> Accept stay requests</label>
+                <button type="button" onClick={() => setTypeForm({ ...typeForm, fields: [...typeForm.fields, { key: "", label: "", kind: "text", required: false, showOnCard: false, showOnDetail: true }] })} className="min-h-11 rounded-full bg-secondary px-4 text-sm font-medium">
+                  Add Detail Field
+                </button>
+                {typeForm.fields.map((field, index) => (
+                  <div key={index} className="grid gap-2 rounded-2xl bg-secondary p-3">
+                    <Field label="Field label"><Input placeholder="Cuisine" value={field.label} onChange={(e) => {
+                      const fields = [...typeForm.fields];
+                      fields[index] = { ...field, label: e.target.value, key: slugify(e.target.value) };
+                      setTypeForm({ ...typeForm, fields });
+                    }} /></Field>
+                    <Field label="Field type"><Select value={field.kind} onChange={(e) => {
+                      const fields = [...typeForm.fields];
+                      fields[index] = { ...field, kind: e.target.value as FieldKind };
+                      setTypeForm({ ...typeForm, fields });
+                    }}>
+                      <option value="text">Text</option>
+                      <option value="textarea">Long text</option>
+                      <option value="number">Number</option>
+                      <option value="url">URL</option>
+                    </Select></Field>
+                    <label className="text-sm font-medium"><input type="checkbox" checked={field.showOnDetail} onChange={(e) => {
+                      const fields = [...typeForm.fields];
+                      fields[index] = { ...field, showOnDetail: e.target.checked };
+                      setTypeForm({ ...typeForm, fields });
+                    }} /> Show on details</label>
+                  </div>
+                ))}
+                <button disabled={busy} className="min-h-11 rounded-full bg-foreground px-4 text-sm font-medium text-background">Save</button>
+              </div>
+            </form>
+            <div className="grid gap-3">
+              <PanelHeader title="Existing Templates" />
+              {types.map((type) => {
+                const Icon = iconOptions.find((icon) => icon.value === type.icon)?.icon ?? MapPin;
+                return (
+                  <div key={type._id} className="flex items-center justify-between gap-3 rounded-2xl bg-card p-4 ring-1 ring-border">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="grid size-10 place-items-center rounded-full bg-secondary"><Icon className="size-4" /></div>
+                      <div className="min-w-0">
+                        <div className="font-semibold">{type.pluralLabel}</div>
+                        <div className="text-sm text-muted-foreground">{type.fields.length} fields</div>
                       </div>
                     </div>
-                    {isArchived && <span className="bg-destructive/10 text-destructive px-2 py-0.5 rounded-full text-[10px] font-medium">Archived</span>}
-                  </div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Globe className="size-3" /> /{dest.id}
-                  </div>
-                  <div className="mt-auto pt-4 border-t border-border flex justify-end gap-2">
-                    <button
-                      onClick={() => editDest(dest)}
-                      className="size-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
-                    >
-                      <Pencil className="size-4 text-foreground" />
-                    </button>
-                    {isArchived ? (
-                      <button
-                        onClick={() => setDestArchived(dest._id, false)}
-                        className="size-8 rounded-full bg-highlight/10 flex items-center justify-center hover:bg-highlight/20 transition-colors"
-                      >
-                        <RotateCcw className="size-4 text-highlight" />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setDestArchived(dest._id, true)}
-                        className="size-8 rounded-full bg-destructive/10 flex items-center justify-center hover:bg-destructive/20 transition-colors"
-                      >
-                        <Archive className="size-4 text-destructive" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDeleteDest(dest._id)}
-                      className="size-8 rounded-full bg-destructive/20 flex items-center justify-center hover:bg-destructive/30 transition-colors"
-                      title="Hard Delete"
-                    >
-                      <Trash2 className="size-4 text-destructive" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {activeTab === "spots" && (
-          <div className="grid gap-6 lg:grid-cols-[250px_1fr]">
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Select Destination</h3>
-              {destinations.length === 0 && <p className="text-sm text-muted-foreground">No destinations available.</p>}
-              {destinations.map(dest => (
-                <button
-                  key={dest._id}
-                  onClick={() => {
-                    setSelectedDestinationId(dest._id);
-                    setSpotForm(current => ({ ...current, destinationId: dest._id }));
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors border ${selectedDestinationId === dest._id ? 'bg-accent/10 border-accent/20 text-accent font-medium' : 'bg-transparent border-transparent hover:bg-secondary text-foreground'}`}
-                >
-                  <span>{dest.flag}</span>
-                  {dest.city}
-                </button>
-              ))}
-            </div>
-
-            <div className="space-y-6">
-              {groupedSpots.map(group => (
-                <div key={group.id} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-                  <div className="flex items-center justify-between bg-secondary/50 px-5 py-3 border-b border-border">
-                    <h3 className="text-sm font-semibold">{group.label}</h3>
-                    <span className="text-xs font-medium bg-background px-2 py-1 rounded-full border border-border">{group.spots.length}</span>
-                  </div>
-                  {group.spots.length === 0 ? (
-                    <div className="px-5 py-6 text-sm text-center text-muted-foreground bg-background/50">No {group.label.toLowerCase()} spots yet.</div>
-                  ) : (
-                    <div className="divide-y divide-border">
-                      {group.spots.map(spot => {
-                        const isArchived = spot.status === "archived";
-                        const isFeatured = selectedDestination?.featuredSpotId === spot._id;
-                        return (
-                          <div key={spot._id} className={`flex items-center justify-between gap-4 px-5 py-4 ${isArchived ? 'opacity-60 bg-secondary/20' : 'bg-background hover:bg-secondary/10 transition-colors'}`}>
-                            <div className="flex items-center gap-4 min-w-0">
-                              {spot.image && spot.image !== "/placeholder.svg" ? (
-                                <img src={spot.image} alt="" className="size-12 rounded-lg object-cover flex-shrink-0" />
-                              ) : (
-                                <div className="size-12 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-                                  <ImageIcon className="size-5 text-muted-foreground" />
-                                </div>
-                              )}
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-semibold truncate">{spot.name}</h4>
-                                  {isArchived && <span className="bg-destructive/10 text-destructive px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0">Archived</span>}
-                                  {isFeatured && <span className="bg-accent/10 text-accent px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0">Recommended</span>}
-                                </div>
-                                <p className="text-sm text-muted-foreground truncate">{spot.tip}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <button
-                                onClick={() => handleSetFeatured(spot._id)}
-                                className={`size-8 rounded-full flex items-center justify-center transition-colors ${isFeatured ? 'bg-accent text-background' : 'bg-secondary hover:bg-secondary/80 text-foreground'}`}
-                                title="Set as Recommended"
-                              >
-                                <Star className="size-4" />
-                              </button>
-                              <button
-                                onClick={() => editSpot(spot)}
-                                className="size-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
-                              >
-                                <Pencil className="size-4 text-foreground" />
-                              </button>
-                              {isArchived ? (
-                                <button
-                                  onClick={() => setSpotArchived(spot._id, false)}
-                                  className="size-8 rounded-full bg-highlight/10 flex items-center justify-center hover:bg-highlight/20 transition-colors"
-                                >
-                                  <RotateCcw className="size-4 text-highlight" />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => setSpotArchived(spot._id, true)}
-                                  className="size-8 rounded-full bg-destructive/10 flex items-center justify-center hover:bg-destructive/20 transition-colors"
-                                >
-                                  <Archive className="size-4 text-destructive" />
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleDeleteSpot(spot._id)}
-                                className="size-8 rounded-full bg-destructive/20 flex items-center justify-center hover:bg-destructive/30 transition-colors"
-                                title="Hard Delete"
-                              >
-                                <Trash2 className="size-4 text-destructive" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Spot Modal */}
-      {isSpotModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border flex flex-col max-h-[90dvh] animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 duration-300">
-            <div className="flex items-center justify-between p-6 border-b border-border">
-              <h2 className="text-xl font-bold">{spotForm.spotId ? "Edit Spot" : "Add New Spot"}</h2>
-              <button onClick={() => setIsSpotModalOpen(false)} className="text-muted-foreground hover:text-foreground p-2 -m-2">Close</button>
-            </div>
-            <div className="overflow-y-auto p-6">
-              <form id="spot-form" onSubmit={submitSpotForm} className="grid gap-6">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    Name
-                    <input value={spotForm.name} onChange={(e) => setSpotForm({ ...spotForm, name: e.target.value })} required className="h-11 rounded-xl border border-input bg-background px-3 focus:ring-2 ring-accent/50 outline-none transition-all" />
-                  </label>
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    Slug
-                    <input value={spotForm.slug} onChange={(e) => setSpotForm({ ...spotForm, slug: e.target.value })} placeholder="Auto-generated" className="h-11 rounded-xl border border-input bg-background px-3 focus:ring-2 ring-accent/50 outline-none transition-all" />
-                  </label>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    Category
-                    <select value={spotForm.category} onChange={(e) => setSpotForm({ ...spotForm, category: e.target.value as Category })} className="h-11 rounded-xl border border-input bg-background px-3 focus:ring-2 ring-accent/50 outline-none transition-all">
-                      {categories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-                    </select>
-                  </label>
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    Walk mins
-                    <input value={spotForm.walkMin} onChange={(e) => setSpotForm({ ...spotForm, walkMin: e.target.value })} type="number" min="0" required className="h-11 rounded-xl border border-input bg-background px-3 focus:ring-2 ring-accent/50 outline-none transition-all" />
-                  </label>
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    Drive mins
-                    <input value={spotForm.driveMin} onChange={(e) => setSpotForm({ ...spotForm, driveMin: e.target.value })} type="number" min="0" required className="h-11 rounded-xl border border-input bg-background px-3 focus:ring-2 ring-accent/50 outline-none transition-all" />
-                  </label>
-                </div>
-
-                <div className="grid gap-1.5 text-sm font-medium">
-                  Map Location
-                  <div className="overflow-hidden rounded-xl border border-input">
-                    <AdminMapPicker
-                      center={selectedDestination?.map?.center ?? [0, 0]}
-                      zoom={selectedDestination?.map?.zoom ?? 2}
-                      markerLngLat={spotForm.longitude && spotForm.latitude ? [Number(spotForm.longitude), Number(spotForm.latitude)] : null}
-                      onChange={(lng, lat) => setSpotForm(current => ({ ...current, longitude: String(lng), latitude: String(lat) }))}
-                      markerLabel={spotForm.name}
-                    />
-                  </div>
-                  <div className="flex gap-4 text-xs text-muted-foreground mt-1">
-                    <span>Lng: {spotForm.longitude || "Not set"}</span>
-                    <span>Lat: {spotForm.latitude || "Not set"}</span>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    Short Tagline
-                    <input value={spotForm.tag} onChange={(e) => setSpotForm({ ...spotForm, tag: e.target.value })} required placeholder="e.g. Local classic" className="h-11 rounded-xl border border-input bg-background px-3 focus:ring-2 ring-accent/50 outline-none transition-all" />
-                  </label>
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    Image (URL or Upload)
                     <div className="flex gap-2">
-                      <input 
-                        value={spotForm.image} 
-                        onChange={(e) => setSpotForm({ ...spotForm, image: e.target.value })} 
-                        required 
-                        placeholder="Image URL or Storage ID"
-                        className="flex-1 h-11 rounded-xl border border-input bg-background px-3 focus:ring-2 ring-accent/50 outline-none transition-all" 
-                      />
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleUploadImage}
-                          className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                          disabled={isUploading}
-                        />
-                        <button
-                          type="button"
-                          className="h-11 px-4 rounded-xl border border-input bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors"
-                          disabled={isUploading}
-                        >
-                          {isUploading ? <Loader2 className="size-4 animate-spin text-muted-foreground" /> : <ImageIcon className="size-4 text-foreground" />}
-                        </button>
-                      </div>
+                      <button onClick={() => setTypeForm({ typeId: type._id, slug: type.slug, label: type.label, pluralLabel: type.pluralLabel, icon: type.icon, isBookable: type.isBookable, fields: type.fields })} className="grid size-10 place-items-center rounded-full bg-secondary"><Pencil className="size-4" /></button>
+                      <button onClick={() => void archiveType({ typeId: type._id })} className="grid size-10 place-items-center rounded-full bg-secondary"><Archive className="size-4" /></button>
                     </div>
-                  </label>
-                </div>
-
-                <label className="grid gap-1.5 text-sm font-medium">
-                  Insider Tip
-                  <textarea value={spotForm.tip} onChange={(e) => setSpotForm({ ...spotForm, tip: e.target.value })} required rows={3} className="rounded-xl border border-input bg-background p-3 focus:ring-2 ring-accent/50 outline-none transition-all resize-none" />
-                </label>
-              </form>
-            </div>
-            <div className="p-6 border-t border-border bg-secondary/20 flex justify-end gap-3 rounded-b-3xl">
-              <button onClick={() => setIsSpotModalOpen(false)} className="px-5 py-2.5 rounded-full font-medium hover:bg-secondary transition-colors">Cancel</button>
-              <button form="spot-form" type="submit" disabled={pending} className="px-5 py-2.5 rounded-full bg-foreground text-background font-medium hover:bg-foreground/90 transition-transform active:scale-95 disabled:opacity-50">
-                {pending ? "Saving..." : spotForm.spotId ? "Update Spot" : "Create Spot"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Destination Modal */}
-      {isDestModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border flex flex-col max-h-[90dvh] animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 duration-300">
-            <div className="flex items-center justify-between p-6 border-b border-border">
-              <h2 className="text-xl font-bold">{destForm.destinationId ? "Edit Destination" : "Add New Destination"}</h2>
-              <button onClick={() => setIsDestModalOpen(false)} className="text-muted-foreground hover:text-foreground p-2 -m-2">Close</button>
-            </div>
-            <div className="overflow-y-auto p-6">
-              <form id="dest-form" onSubmit={submitDestForm} className="grid gap-6">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    City
-                    <input value={destForm.city} onChange={(e) => setDestForm({ ...destForm, city: e.target.value })} required className="h-11 rounded-xl border border-input bg-background px-3 focus:ring-2 ring-accent/50 outline-none transition-all" />
-                  </label>
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    Slug
-                    <input value={destForm.slug} onChange={(e) => setDestForm({ ...destForm, slug: e.target.value })} placeholder="Auto-generated" className="h-11 rounded-xl border border-input bg-background px-3 focus:ring-2 ring-accent/50 outline-none transition-all" />
-                  </label>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    Country
-                    <input value={destForm.country} onChange={(e) => setDestForm({ ...destForm, country: e.target.value })} required className="h-11 rounded-xl border border-input bg-background px-3 focus:ring-2 ring-accent/50 outline-none transition-all" />
-                  </label>
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    Flag (Emoji)
-                    <input value={destForm.flag} onChange={(e) => setDestForm({ ...destForm, flag: e.target.value })} required className="h-11 rounded-xl border border-input bg-background px-3 focus:ring-2 ring-accent/50 outline-none transition-all" />
-                  </label>
-                </div>
-
-                <div className="grid gap-1.5 text-sm font-medium">
-                  Destination Center & Zoom
-                  <div className="overflow-hidden rounded-xl border border-input">
-                    <AdminMapPicker
-                      center={destForm.mapCenterLng ? [Number(destForm.mapCenterLng), Number(destForm.mapCenterLat)] : [0, 0]}
-                      zoom={destForm.mapZoom ? Number(destForm.mapZoom) : 2}
-                      markerLngLat={null}
-                      onCenterChange={(lng, lat) => setDestForm(current => ({ ...current, mapCenterLng: String(lng), mapCenterLat: String(lat), youLngLatLng: String(lng), youLngLatLat: String(lat) }))}
-                      onZoomChange={(zoom) => setDestForm(current => ({ ...current, mapZoom: String(zoom) }))}
-                    />
                   </div>
-                  <div className="flex gap-4 text-xs text-muted-foreground mt-1">
-                    <span>Lng: {destForm.mapCenterLng || "Not set"}</span>
-                    <span>Lat: {destForm.mapCenterLat || "Not set"}</span>
-                    <span>Zoom: {destForm.mapZoom ? Number(destForm.mapZoom).toFixed(1) : "Not set"}</span>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
+        {tab === "picks" ? (
+          <section className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+            <form onSubmit={savePick} className="rounded-2xl bg-card p-5 ring-1 ring-border">
+              <PanelHeader title={pickForm.poiId ? "Edit Wandr Pick" : "New Wandr Pick"} />
+              <div className="mt-4 grid gap-3">
+                <div className="rounded-2xl bg-secondary p-4">
+                  <div className="mb-3 text-sm font-semibold">What is it?</div>
+                  <div className="grid gap-3">
+                    <Field label="Template"><Select value={pickForm.typeId || selectedType?._id || ""} onChange={(e) => setPickForm({ ...pickForm, typeId: e.target.value as Id<"poiTypes"> })} required>
+                      {activeTypes.map((type) => <option key={type._id} value={type._id}>{type.label}</option>)}
+                    </Select></Field>
+                    <Field label="Name"><Input placeholder="Joe's Beerhouse" value={pickForm.name} onChange={(e) => setPickForm({ ...pickForm, name: e.target.value })} required /></Field>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="City"><Input placeholder="Windhoek" value={pickForm.city} onChange={(e) => setPickForm({ ...pickForm, city: e.target.value })} required /></Field>
+                      <Field label="Country"><Input placeholder="Namibia" value={pickForm.country} onChange={(e) => setPickForm({ ...pickForm, country: e.target.value })} required /></Field>
+                    </div>
                   </div>
                 </div>
-              </form>
+                <div className="rounded-2xl bg-secondary p-4">
+                  <div className="mb-3 text-sm font-semibold">Public details</div>
+                  <div className="grid gap-3">
+                    <Field label="Short tag"><Input placeholder="Local classic" value={pickForm.tag} onChange={(e) => setPickForm({ ...pickForm, tag: e.target.value })} /></Field>
+                    <Field label="Card summary"><Textarea placeholder="Short and useful." value={pickForm.summary} onChange={(e) => setPickForm({ ...pickForm, summary: e.target.value })} required /></Field>
+                    <Field label="Details page"><Textarea placeholder="Everything users should know." value={pickForm.detail} onChange={(e) => setPickForm({ ...pickForm, detail: e.target.value })} /></Field>
+                    <Field label="Search tags"><Input placeholder="food, local, dinner" value={pickForm.tags} onChange={(e) => setPickForm({ ...pickForm, tags: e.target.value })} /></Field>
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-secondary p-4">
+                  <div className="mb-3 text-sm font-semibold">Map and media</div>
+                  <div className="grid gap-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Walk min"><Input type="number" value={pickForm.walkMin} onChange={(e) => setPickForm({ ...pickForm, walkMin: e.target.value })} /></Field>
+                      <Field label="Drive min"><Input type="number" value={pickForm.driveMin} onChange={(e) => setPickForm({ ...pickForm, driveMin: e.target.value })} /></Field>
+                    </div>
+                    <AdminMapPicker center={pickForm.longitude && pickForm.latitude ? [Number(pickForm.longitude), Number(pickForm.latitude)] : [17.09, -22.55]} zoom={12} markerLngLat={pickForm.longitude && pickForm.latitude ? [Number(pickForm.longitude), Number(pickForm.latitude)] : null} markerLabel={pickForm.name} onChange={(lng, lat) => setPickForm({ ...pickForm, longitude: String(lng), latitude: String(lat) })} />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Longitude"><Input value={pickForm.longitude} onChange={(e) => setPickForm({ ...pickForm, longitude: e.target.value })} required /></Field>
+                      <Field label="Latitude"><Input value={pickForm.latitude} onChange={(e) => setPickForm({ ...pickForm, latitude: e.target.value })} required /></Field>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Input placeholder="Image" value={pickForm.image} onChange={(e) => setPickForm({ ...pickForm, image: e.target.value })} />
+                  <label className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full bg-secondary"><ImageIcon className="size-4" /><input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && void uploadImage(e.target.files[0], (id) => setPickForm({ ...pickForm, image: id }))} /></label>
+                </div>
+                {selectedType?.fields.length ? (
+                  <div className="rounded-2xl bg-secondary p-4">
+                    <div className="mb-3 text-sm font-semibold">{selectedType.label} fields</div>
+                    <div className="grid gap-3">
+                      {selectedType.fields.map((field) => (
+                        <Field key={field.key} label={field.label}>
+                          <Input value={pickForm.customFields[field.key] ?? ""} onChange={(e) => setPickForm({ ...pickForm, customFields: { ...pickForm.customFields, [field.key]: e.target.value } })} />
+                        </Field>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                <button disabled={busy} className="min-h-11 rounded-full bg-foreground px-4 text-sm font-medium text-background">Save</button>
+              </div>
+            </form>
+            <div className="grid content-start gap-3">
+              <PanelHeader title="All Wandr Picks" />
+              {picks.map((pick) => (
+                <div key={pick._id} className="flex items-center justify-between gap-3 rounded-2xl bg-card p-4 ring-1 ring-border">
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold">{pick.name}</div>
+                    <div className="text-sm text-muted-foreground">{pick.typeLabel} - {pick.city}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setPickForm({ poiId: pick._id, typeId: pick.typeId, slug: pick.slug, name: pick.name, city: pick.city, country: pick.country, summary: pick.summary, detail: pick.detail, tag: pick.tag, tags: pick.tags?.join(", ") ?? "", image: pick.image, longitude: String(pick.lngLat?.[0] ?? ""), latitude: String(pick.lngLat?.[1] ?? ""), walkMin: String(pick.walkMin), driveMin: String(pick.driveMin), status: pick.status, customFields: Object.fromEntries(Object.entries(pick.customFields ?? {}).map(([key, value]) => [key, String(value ?? "")])) })} className="grid size-10 place-items-center rounded-full bg-secondary"><Pencil className="size-4" /></button>
+                    {pick.status === "archived" ? <button onClick={() => void restorePick({ poiId: pick._id })} className="grid size-10 place-items-center rounded-full bg-secondary"><Check className="size-4" /></button> : <button onClick={() => void archivePick({ poiId: pick._id })} className="grid size-10 place-items-center rounded-full bg-secondary"><Archive className="size-4" /></button>}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="p-6 border-t border-border bg-secondary/20 flex justify-end gap-3 rounded-b-3xl">
-              <button onClick={() => setIsDestModalOpen(false)} className="px-5 py-2.5 rounded-full font-medium hover:bg-secondary transition-colors">Cancel</button>
-              <button form="dest-form" type="submit" disabled={pending} className="px-5 py-2.5 rounded-full bg-foreground text-background font-medium hover:bg-foreground/90 transition-transform active:scale-95 disabled:opacity-50">
-                {pending ? "Saving..." : destForm.destinationId ? "Update Destination" : "Create Destination"}
-              </button>
+          </section>
+        ) : null}
+
+        {tab === "plans" ? (
+          <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+            <form onSubmit={savePlan} className="rounded-2xl bg-card p-5 ring-1 ring-border">
+              <PanelHeader title="New Adventure" />
+              <div className="mt-4 grid gap-3">
+                <div className="rounded-2xl bg-secondary p-4">
+                  <div className="mb-3 text-sm font-semibold">Trip card</div>
+                  <div className="grid gap-3">
+                    <Field label="Name"><Input placeholder="Weekend in Windhoek" value={planForm.title} onChange={(e) => setPlanForm({ ...planForm, title: e.target.value })} required /></Field>
+                    <Field label="Short summary"><Textarea placeholder="What users are starting." value={planForm.summary} onChange={(e) => setPlanForm({ ...planForm, summary: e.target.value })} /></Field>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Duration"><Input placeholder="2 days" value={planForm.durationLabel} onChange={(e) => setPlanForm({ ...planForm, durationLabel: e.target.value })} /></Field>
+                      <Field label="Countries"><Input placeholder="Namibia, Botswana" value={planForm.countries} onChange={(e) => setPlanForm({ ...planForm, countries: e.target.value })} /></Field>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-secondary p-4">
+                  <div className="mb-3 text-sm font-semibold">Stops</div>
+                  <Select onChange={(e) => e.target.value && setPlanForm({ ...planForm, stopIds: [...planForm.stopIds, e.target.value as Id<"pointsOfInterest">] })} value="">
+                    <option value="">Add Wandr Pick</option>
+                    {activePicks.map((pick) => <option key={pick._id} value={pick._id}>{pick.name}</option>)}
+                  </Select>
+                  <ol className="mt-3 grid gap-2">
+                    {planForm.stopIds.map((id, index) => <li key={`${id}-${index}`} className="rounded-2xl bg-card p-3 text-sm">{index + 1}. {activePicks.find((pick) => pick._id === id)?.name ?? "Pick"}</li>)}
+                  </ol>
+                </div>
+                <button disabled={busy} className="min-h-11 rounded-full bg-foreground px-4 text-sm font-medium text-background">Save</button>
+              </div>
+            </form>
+            <div className="grid content-start gap-3">
+              <PanelHeader title="Published Adventures" />
+              {data?.plans?.map((plan) => (
+                <div key={plan._id} className="rounded-2xl bg-card p-4 ring-1 ring-border">
+                  <div className="font-semibold">{plan.title}</div>
+                  <div className="text-sm text-muted-foreground">{plan.durationLabel} - {plan.stops.length} stops</div>
+                </div>
+              ))}
+              {data?.plans?.length === 0 ? <div className="rounded-2xl bg-secondary p-5 text-sm text-muted-foreground">No adventures yet.</div> : null}
             </div>
-          </div>
-        </div>
-      )}
+          </section>
+        ) : null}
+
+        {tab === "requests" ? (
+          <section className="grid gap-3">
+            <PanelHeader title="Stay Request Inbox" />
+            {data?.requests?.map((request) => (
+              <div key={request._id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-card p-4 ring-1 ring-border">
+                <div>
+                  <div className="font-semibold">{request.startDate} to {request.endDate}</div>
+                  <div className="text-sm text-muted-foreground">{request.guests} guests - {request.status}</div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => void updateRequest({ requestId: request._id, status: "confirmed" })} className="min-h-10 rounded-full bg-foreground px-4 text-sm font-medium text-background">Confirm</button>
+                  <button onClick={() => void updateRequest({ requestId: request._id, status: "declined" })} className="min-h-10 rounded-full bg-secondary px-4 text-sm font-medium">Decline</button>
+                </div>
+              </div>
+            ))}
+            {data?.requests?.length === 0 ? <div className="rounded-2xl bg-secondary p-5 text-sm text-muted-foreground">No requests.</div> : null}
+          </section>
+        ) : null}
+      </div>
+      </div>
     </main>
   );
 }

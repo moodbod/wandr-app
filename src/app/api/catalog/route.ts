@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { api } from "../../../../convex/_generated/api";
 
 export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -15,7 +16,15 @@ export async function GET() {
   }
 
   const client = new ConvexHttpClient(convexUrl);
-  const catalog = await client.query(api.content.listPublic, {});
+  let catalog;
+  try {
+    catalog = await client.query(api.content.listWandrPicksPublic, {});
+  } catch {
+    return NextResponse.json(
+      { types: [], picks: [], destinations: [], featuredPlans: [] },
+      { status: 200, headers: { "Cache-Control": "no-store" } },
+    );
+  }
 
   return NextResponse.json(catalog, {
     headers: {

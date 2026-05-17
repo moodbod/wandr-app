@@ -222,7 +222,7 @@ describe("ExplorePage recommendation card", () => {
     expect(screen.getByText("You might like this")).toBeInTheDocument();
     expect(screen.getByText(firstSpot.name)).toBeInTheDocument();
     expect(screen.getByText(firstSpot.tag)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /view spot/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /view spot/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^route$/i })).toBeInTheDocument();
 
     expect(testState.mapProps.at(-1)).toMatchObject({
@@ -256,7 +256,7 @@ describe("ExplorePage recommendation card", () => {
 
     render(<ExplorePage />);
 
-    fireEvent.click(screen.getByRole("button", { name: /view spot/i }));
+    fireEvent.click(screen.getByText(firstSpot.name));
 
     await waitFor(() => {
       expect(screen.getByTestId("spot-modal")).toHaveTextContent(firstSpot.name);
