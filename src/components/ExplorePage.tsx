@@ -819,6 +819,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   }
 
   return (
+    <>
     <main className="wandr-native-map-shell text-foreground">
       {/* Map */}
       <div className="absolute inset-0">
@@ -1351,8 +1352,6 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
       <OnboardingDialog open={onboardingOpen} onComplete={handleOnboardingComplete} />
       {/* Map Pre-warmer for offline caching */}
       <MapWarmup destinations={destinations} accessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN} />
-      {/* Bottom navigation — always visible, fixed above overlays */}
-      <BottomNav onTripsClick={() => runGatedAction(() => setTripSheetOpen(true))} />
 
       {children && (
         <div
@@ -1363,6 +1362,9 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
         </div>
       )}
     </main>
+    {/* Bottom navigation — rendered OUTSIDE the map shell so iOS doesn't clip it */}
+    <BottomNav onTripsClick={() => runGatedAction(() => setTripSheetOpen(true))} />
+    </>
   );
 };
 
