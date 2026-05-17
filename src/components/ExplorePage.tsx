@@ -171,6 +171,8 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   const [optimisticTripData, setOptimisticTripData] = useState<PersistedTripData | null>(null);
   const [offlineQueue, setOfflineQueue] = useState<OfflineTripAction[]>(() => readOfflineTripQueue());
   const [activeCat, setActiveCat] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [fallbackNextStopId, setFallbackNextStopId] = useState<string | null>(localSnapshot?.routedSpotId ?? null);
   const [openSpotId, setOpenSpotId] = useState<string | null>(null);
   const [fallbackRouteMode, setFallbackRouteMode] = useState<"walk" | "drive">("walk");
@@ -199,9 +201,27 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const syncingRef = useRef(false);
 
+  const filteredSpots = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return allSpots;
+    }
+    const q = searchQuery.toLowerCase().trim();
+    return allSpots.filter((spot) => {
+      return (
+        spot.name.toLowerCase().includes(q) ||
+        spot.tag.toLowerCase().includes(q) ||
+        spot.tip.toLowerCase().includes(q) ||
+        spot.category.toLowerCase().includes(q) ||
+        spot.destinationCity.toLowerCase().includes(q) ||
+        spot.destinationCountry.toLowerCase().includes(q) ||
+        (spot.tags && spot.tags.some((t) => t.toLowerCase().includes(q)))
+      );
+    });
+  }, [allSpots, searchQuery]);
+
   const visibleSpots = useMemo(
-    () => allSpots.filter((s) => activeCat === "all" || s.category === activeCat),
-    [allSpots, activeCat]
+    () => filteredSpots.filter((s) => activeCat === "all" || s.category === activeCat),
+    [filteredSpots, activeCat]
   );
 
   const resumeTripData = useQuery(
@@ -247,11 +267,21 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   }, [allSpots, effectiveTripData?.trip.status, tripStops]);
 
   const activeMapConfig = useMemo(() => {
+    if (searchQuery.trim() && filteredSpots.length > 0) {
+      const firstMatch = filteredSpots.filter((s) => activeCat === "all" || s.category === activeCat)[0];
+      if (firstMatch) {
+        return {
+          center: firstMatch.lngLat as [number, number],
+          zoom: 14,
+          label: firstMatch.name,
+        };
+      }
+    }
     if (destinations.length > 0 && destinations[0].map) {
       return { ...destinations[0].map, label: destinations[0].city };
     }
     return defaultMapConfig;
-  }, [destinations]);
+  }, [destinations, searchQuery, filteredSpots, activeCat]);
 
   const offlineCenter = userPosition?.lngLat ?? nextStop?.lngLat ?? activeMapConfig.center;
   const offlineRadiusMeters = offlineRadiusKm * 1000;
@@ -304,6 +334,15 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const match = filteredSpots.find((s) => activeCat === "all" || s.category === activeCat);
+      if (match) {
+        setFallbackNextStopId(match.id);
+      }
+    }
+  }, [filteredSpots, searchQuery, activeCat]);
 
   useEffect(() => {
     saveOfflineTripQueue(offlineQueue);
@@ -782,40 +821,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
           </div>
         )}
 
-        {isRootRoute ? (
-          <div className="absolute bottom-[10rem] right-3 z-30 w-[min(18rem,calc(100vw-1.5rem))] rounded-2xl bg-card/95 p-3 text-xs ring-1 ring-border backdrop-blur sm:bottom-6 sm:right-8">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="font-semibold text-foreground">Download area</div>
-                <div className="truncate text-muted-foreground">
-                  {offlineAreaSpots.length} picks - ~{offlineEstimateMb} MB
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleDownloadOfflineArea}
-                disabled={isDownloadingArea}
-                className="inline-flex min-h-9 shrink-0 items-center rounded-full bg-foreground px-3 text-xs font-medium text-background transition-colors hover:bg-foreground/80 disabled:opacity-60"
-              >
-                {isDownloadingArea ? "Saving" : latestOfflineArea ? "Update" : "Download"}
-              </button>
-            </div>
-            <label className="mt-2 flex items-center gap-2 text-muted-foreground">
-              <span className="shrink-0 tabular-nums">{offlineRadiusKm} km</span>
-              <input
-                type="range"
-                min="1"
-                max="10"
-                step="1"
-                value={offlineRadiusKm}
-                onChange={(event) => setOfflineRadiusKm(Number(event.target.value))}
-                className="min-w-0 flex-1 accent-foreground"
-                aria-label="Offline download radius"
-              />
-            </label>
-            {offlineDownloadError ? <div className="mt-1 text-[11px] font-medium text-destructive">{offlineDownloadError}</div> : null}
-          </div>
-        ) : null}
+
       </div>
 
       {/* Top */}
@@ -827,15 +833,53 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
       >
         <div className="sm:hidden">
           <div className="relative w-full">
-            <div className="relative z-40 flex w-full items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => runGatedAction(() => undefined)}
-                className="grid size-11 shrink-0 place-items-center rounded-full bg-card text-foreground ring-1 ring-border transition-colors active:bg-secondary"
-                aria-label="Search"
+            {mobileSearchOpen ? (
+              <form
+                className="relative z-40 flex w-full items-center gap-2 rounded-full bg-card p-1.5 pl-3 ring-1 ring-border"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setMobileSearchOpen(false);
+                }}
               >
-                <Search className="size-4" />
-              </button>
+                <Search className="size-4 text-muted-foreground shrink-0" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search places..."
+                  className="min-w-0 flex-1 bg-transparent py-1 text-sm placeholder:text-muted-foreground focus:outline-none"
+                  autoFocus
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="text-xs text-muted-foreground hover:text-foreground px-2"
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileSearchOpen(false);
+                    setSearchQuery("");
+                  }}
+                  className="rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-foreground"
+                >
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <div className="relative z-40 flex w-full items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMobileSearchOpen(true)}
+                  className="grid size-11 shrink-0 place-items-center rounded-full bg-card text-foreground ring-1 ring-border transition-colors active:bg-secondary"
+                  aria-label="Search"
+                >
+                  <Search className="size-4" />
+                </button>
 
               <div className="flex min-w-0 items-center justify-end gap-2">
                 <div className="relative">
@@ -884,6 +928,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                 />
               </div>
             </div>
+            )}
 
             {mobileFilterOpen ? (
               <div className="fixed inset-0 z-30" onClick={() => setMobileFilterOpen(false)} />
@@ -918,15 +963,25 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
               className="flex items-center gap-3 rounded-2xl bg-card p-2 pl-4 ring-1 ring-border"
               onSubmit={(event) => {
                 event.preventDefault();
-                runGatedAction(() => undefined);
               }}
             >
               <Search className="size-4 text-muted-foreground shrink-0" />
               <input
                 type="text"
                 placeholder="Where should we go today?"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="min-w-0 w-full bg-transparent py-2 text-[16px] placeholder:text-muted-foreground focus:outline-none sm:text-base"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="text-xs text-muted-foreground hover:text-foreground px-2"
+                >
+                  Clear
+                </button>
+              )}
               <button
                 type="submit"
                 className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/80"

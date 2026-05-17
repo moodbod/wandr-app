@@ -55,6 +55,10 @@ const testState = vi.hoisted(() => ({
   authDialogOpen: false,
 }));
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+}));
+
 vi.mock("@convex-dev/auth/react", () => ({
   useConvexAuth: () => ({ isAuthenticated: testState.authenticated, isLoading: false }),
 }));

@@ -24,6 +24,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Switch } from "@/components/ui/switch";
 import type { Destination } from "@/data/destinations";
 import { useLiveLocationPreference } from "@/hooks/useUserLocation";
+import { OfflineDownloads } from "@/components/OfflineDownloads";
 
 const preferenceOptions = [
   { id: "eat", label: "Food" },
@@ -181,6 +182,8 @@ export default function SettingsPage() {
               />
             </div>
           </section>
+
+          <OfflineDownloads />
 
         {isLoadingAccount ? (
           <div className="rounded-2xl bg-card p-6 ring-1 ring-border">

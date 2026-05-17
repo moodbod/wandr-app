@@ -64,6 +64,8 @@ type PersistentMapState = {
   resizeFrame: number | null;
   didInitialCenter: boolean;
   routeKey: string | null;
+  lastTargetCenter: [number, number] | null;
+  lastTargetZoom: number | null;
 };
 
 const persistentMapState: PersistentMapState = {
@@ -76,6 +78,8 @@ const persistentMapState: PersistentMapState = {
   resizeFrame: null,
   didInitialCenter: false,
   routeKey: null,
+  lastTargetCenter: null,
+  lastTargetZoom: null,
 };
 
 const followPreferenceKey = "wandr.map.followMode.v1";
@@ -294,16 +298,35 @@ const MapboxStreetsMap = ({
     const map = mapRef.current;
     if (!map || !ready || routeOpen) return;
 
-    programmaticMoveRef.current = true;
-    map.jumpTo({
-      center: mapCenter,
-      zoom: mapZoom,
-    });
-    map.resize();
-    window.setTimeout(() => {
-      programmaticMoveRef.current = false;
-    }, 0);
-  }, [mapCenter, mapZoom, ready, routeOpen]);
+    const isInitialRun = !persistentMapState.lastTargetCenter;
+
+    const centerChanged =
+      isInitialRun ||
+      persistentMapState.lastTargetCenter[0] !== mapCenter[0] ||
+      persistentMapState.lastTargetCenter[1] !== mapCenter[1];
+    const zoomChanged = persistentMapState.lastTargetZoom !== mapZoom;
+
+    if (centerChanged || zoomChanged) {
+      persistentMapState.lastTargetCenter = mapCenter;
+      persistentMapState.lastTargetZoom = mapZoom;
+
+      // On initial run, if we have a user position, the map was already centered at the user position by constructor.
+      // Do NOT jump to mapCenter! Just save target center/zoom to prevent future snaps.
+      if (isInitialRun && userPosition) {
+        return;
+      }
+
+      programmaticMoveRef.current = true;
+      map.jumpTo({
+        center: mapCenter,
+        zoom: mapZoom,
+      });
+      map.resize();
+      window.setTimeout(() => {
+        programmaticMoveRef.current = false;
+      }, 0);
+    }
+  }, [mapCenter, mapZoom, ready, routeOpen, userPosition]);
 
   // --- Update user position on the map ---
   useEffect(() => {
