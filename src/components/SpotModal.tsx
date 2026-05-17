@@ -35,30 +35,30 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
         aria-label="Close"
       />
 
-      <div className="wandr-spot-panel relative flex w-full max-w-md flex-col overflow-hidden rounded-t-[1.75rem] border border-border bg-card shadow-2xl animate-in slide-in-from-bottom-6 duration-300 sm:rounded-3xl sm:zoom-in-95">
+      <div className="wandr-spot-panel relative flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-border bg-card animate-in slide-in-from-bottom-6 duration-300 sm:rounded-2xl sm:zoom-in-95">
         <div className="absolute left-1/2 top-2 z-10 h-1.5 w-12 -translate-x-1/2 rounded-full bg-background/75 sm:hidden" />
         {/* Image */}
         <div className="relative aspect-[5/3] w-full shrink-0">
           <SpotImage src={spot.image} alt={spot.name} className="object-cover" sizes="(min-width: 640px) 28rem, 100vw" fill />
-          <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-foreground/45 via-transparent to-transparent" />
 
           <button
             onClick={onClose}
-            className="absolute right-3 top-3 grid size-10 place-items-center rounded-full bg-background/90 backdrop-blur-sm transition-colors hover:bg-background"
+            className="absolute right-3 top-3 grid size-10 place-items-center rounded-full bg-background transition-colors hover:bg-secondary"
             aria-label="Close"
           >
             <X className="size-4" />
           </button>
 
-          <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 bg-background/90 backdrop-blur-sm rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider">
+          <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-background px-3 py-1.5 text-xs font-medium">
             {spot.tag}
           </div>
 
           <div className="absolute bottom-3 left-4 right-4">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-background/80">
+            <div className="text-sm font-medium text-background/80">
               {categoryLabel[spot.category]}
             </div>
-            <h2 id="spot-title" className="text-2xl font-semibold text-background leading-tight mt-0.5">
+            <h2 id="spot-title" className="mt-0.5 text-3xl font-bold leading-9 text-background">
               {spot.name}
             </h2>
           </div>
@@ -68,7 +68,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
         <div className="wandr-spot-body flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 sm:p-5">
           {/* ETA row */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-center gap-2.5 rounded-2xl bg-secondary px-3 py-3">
+            <div className="flex items-center gap-2.5 rounded-2xl bg-secondary px-4 py-3">
               <div className="size-8 grid place-items-center rounded-full bg-card">
                 <Footprints className="size-4" />
               </div>
@@ -77,7 +77,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
                 <div className="text-[11px] text-muted-foreground mt-0.5">Walk</div>
               </div>
             </div>
-            <div className="flex items-center gap-2.5 rounded-2xl bg-secondary px-3 py-3">
+            <div className="flex items-center gap-2.5 rounded-2xl bg-secondary px-4 py-3">
               <div className="size-8 grid place-items-center rounded-full bg-card">
                 <Car className="size-4" />
               </div>
@@ -89,8 +89,8 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
           </div>
 
           {/* Tip */}
-          <div className="rounded-2xl bg-accent/10 border border-accent/20 p-4">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-accent mb-1">
+          <div className="rounded-2xl bg-secondary p-4">
+            <div className="mb-1 text-sm font-medium text-muted-foreground">
               A local would tell you
             </div>
             <p className="text-sm leading-relaxed text-foreground/90">{spot.tip}</p>
@@ -107,7 +107,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
               "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
               isInTrip
                 ? "bg-secondary text-muted-foreground cursor-default"
-                : "bg-foreground text-background hover:bg-foreground/90",
+                : "bg-foreground text-background hover:bg-foreground/80",
             ].join(" ")}
           >
             {isInTrip ? <Check className="size-4" /> : <Plus className="size-4" />}
@@ -120,7 +120,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
               "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
               isNextStop
                 ? "bg-secondary text-muted-foreground cursor-default"
-                : "border border-border hover:bg-secondary",
+                : "bg-secondary hover:bg-muted",
             ].join(" ")}
           >
             <MapPin className="size-4" />
@@ -128,7 +128,7 @@ const SpotModal = ({ spot, isNextStop, onClose, onSetNextStop, onRoute, onAddToT
           </button>
           <button
             onClick={() => onRoute(spot)}
-            className="col-span-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-secondary"
+            className="col-span-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-secondary px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
           >
             <Navigation className="size-4" /> Route
           </button>

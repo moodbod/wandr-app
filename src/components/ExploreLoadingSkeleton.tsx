@@ -16,14 +16,14 @@ export function ExploreLoadingSkeleton({ children }: { children?: React.ReactNod
       </div>
 
       {/* Floating Header Skeleton */}
-      <header className={`absolute left-0 right-0 top-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top))] pointer-events-none ${!isRootRoute ? "hidden" : ""}`}>
+      <header className={`pointer-events-none absolute left-0 right-0 top-0 z-30 px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-8 sm:pt-[max(1.5rem,env(safe-area-inset-top))] ${!isRootRoute ? "hidden" : ""}`}>
         {/* Mobile Header */}
         <div className="sm:hidden">
           <div className="flex w-full items-center justify-between gap-2">
-            <div className="size-10 shrink-0 rounded-full bg-white/95 border border-white/70 backdrop-blur-xl animate-pulse" />
+            <div className="size-11 shrink-0 animate-pulse rounded-full bg-card" />
             <div className="flex gap-2">
-              <div className="h-10 w-24 rounded-full bg-white/95 border border-white/70 backdrop-blur-xl animate-pulse" />
-              <div className="size-10 rounded-full bg-white/95 border border-white/70 backdrop-blur-xl animate-pulse" />
+              <div className="h-11 w-28 animate-pulse rounded-full bg-card" />
+              <div className="size-11 animate-pulse rounded-full bg-card" />
             </div>
           </div>
         </div>
@@ -31,15 +31,15 @@ export function ExploreLoadingSkeleton({ children }: { children?: React.ReactNod
         {/* Desktop Header Layout */}
         <div className="hidden sm:flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <div className="h-8 w-24 bg-card/95 rounded-full animate-pulse" />
-            <div className="size-10 rounded-full bg-card/95 animate-pulse" />
+            <div className="h-10 w-24 animate-pulse rounded-full bg-card" />
+            <div className="size-10 animate-pulse rounded-full bg-card" />
           </div>
           
           <div className="mx-auto w-full max-w-2xl">
-             <div className="flex items-center gap-2 rounded-full border border-border bg-card/95 py-1.5 pl-4 pr-1.5 shadow-lg backdrop-blur-md h-12 animate-pulse" />
+             <div className="h-14 animate-pulse rounded-2xl bg-card ring-1 ring-border" />
              <div className="mt-3 flex gap-1.5 overflow-hidden">
                 {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="h-9 w-20 rounded-full bg-card/95 border border-border animate-pulse shrink-0" />
+                  <div key={i} className="h-11 w-24 shrink-0 animate-pulse rounded-full bg-secondary" />
                 ))}
              </div>
           </div>
@@ -47,9 +47,9 @@ export function ExploreLoadingSkeleton({ children }: { children?: React.ReactNod
       </header>
 
       {/* Bottom Card Skeleton */}
-      <div className={`absolute bottom-0 left-0 right-0 z-30 sm:px-6 sm:pb-6 pointer-events-none ${!isRootRoute ? "hidden" : ""}`}>
+      <div className={`pointer-events-none absolute bottom-[5.25rem] left-0 right-0 z-30 px-3 sm:bottom-0 sm:px-8 sm:pb-8 ${!isRootRoute ? "hidden" : ""}`}>
         <div className="mx-auto flex w-[calc(100%-1rem)] max-w-[24.5rem] flex-col sm:w-full sm:max-w-2xl">
-          <div className="overflow-hidden rounded-t-[2rem] bg-card px-2 pb-8 pt-2.5 shadow-2xl sm:rounded-2xl sm:p-6 animate-pulse">
+          <div className="animate-pulse overflow-hidden rounded-2xl bg-card p-5 ring-1 ring-border sm:p-6">
             <div className="mx-auto mb-3 h-1.5 w-8 rounded-full bg-muted sm:hidden" />
             <div className="h-4 w-24 bg-muted/40 rounded mb-2" />
             <div className="h-8 w-48 bg-muted/60 rounded mb-4" />

@@ -25,7 +25,7 @@ export function AuthStatus({ userName, userEmail, onSignIn }: AuthStatusProps) {
 
   if (isLoading) {
     return (
-      <div className="size-10 animate-pulse rounded-full border border-border bg-card sm:size-9" aria-hidden />
+      <div className="size-10 animate-pulse rounded-full border border-border bg-card sm:size-10" aria-hidden />
     );
   }
 
@@ -34,7 +34,7 @@ export function AuthStatus({ userName, userEmail, onSignIn }: AuthStatusProps) {
       <button
         type="button"
         onClick={onSignIn}
-        className="inline-flex size-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-border bg-card text-xs font-medium text-foreground transition-colors hover:bg-secondary sm:h-8 sm:w-auto sm:px-3"
+        className="inline-flex size-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-foreground text-xs font-medium text-background transition-colors hover:bg-foreground/80 sm:h-10 sm:w-auto sm:px-4"
         aria-label="Sign in"
       >
         <UserRound className="size-3.5" />
@@ -48,7 +48,7 @@ export function AuthStatus({ userName, userEmail, onSignIn }: AuthStatusProps) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex size-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-border bg-card p-0.5 transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-8 sm:w-auto sm:justify-start sm:pl-1 sm:pr-2.5"
+          className="inline-flex size-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-border bg-card p-0.5 transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-10 sm:w-auto sm:justify-start sm:pl-1 sm:pr-3"
           aria-label={`${avatarName} account menu`}
         >
           <span className="grid size-8 place-items-center overflow-hidden rounded-full sm:size-6">

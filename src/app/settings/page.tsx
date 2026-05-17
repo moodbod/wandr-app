@@ -37,8 +37,8 @@ const statusLabels = {
 } as const;
 
 const statusClasses = {
-  planning: "bg-accent/10 text-accent ring-accent/25",
-  active: "bg-highlight/10 text-highlight ring-highlight/25",
+  planning: "bg-secondary text-foreground ring-transparent",
+  active: "bg-foreground text-background ring-transparent",
   completed: "bg-secondary text-muted-foreground ring-border",
 } as const;
 
@@ -124,45 +124,45 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-dvh bg-background text-foreground">
-      <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col">
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-background/90 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-xl sm:px-6">
+      <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col">
+        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-background/95 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-xl sm:px-8">
           <Link
             href="/"
-            className="grid size-10 shrink-0 place-items-center rounded-full border border-white/70 bg-white/95 shadow-sm transition-transform active:scale-95"
+            className="grid size-11 shrink-0 place-items-center rounded-full bg-card ring-1 ring-border transition-colors hover:bg-secondary"
             aria-label="Back to Wandr"
           >
             <ArrowLeft className="size-4" />
           </Link>
           <div className="min-w-0 flex-1 text-center">
-            <h1 className="truncate text-base font-semibold">Settings</h1>
+            <h1 className="truncate text-base font-bold">Settings</h1>
             <p className="truncate text-xs text-muted-foreground">Profile, trips, and account</p>
           </div>
           <Link
             href="/"
-            className="inline-flex h-10 shrink-0 items-center rounded-full border border-white/70 bg-white/95 px-3 text-xs font-medium shadow-sm transition-transform active:scale-95"
+            className="inline-flex h-11 shrink-0 items-center rounded-full bg-card px-4 text-sm font-medium ring-1 ring-border transition-colors hover:bg-secondary"
           >
             Map
           </Link>
         </header>
 
-        <div className="flex flex-1 flex-col gap-8 px-4 pb-[max(5rem,calc(3rem+env(safe-area-inset-bottom)+2rem))] pt-3 sm:px-6 sm:pt-5 lg:pb-[max(2rem,env(safe-area-inset-bottom))]">
+        <div className="flex flex-1 flex-col gap-8 px-4 pb-[max(6rem,calc(4rem+env(safe-area-inset-bottom)+2rem))] pt-4 sm:px-8 sm:pt-6 lg:pb-[max(2rem,env(safe-area-inset-bottom))]">
           <section>
-            <h2 className="text-3xl font-black leading-none tracking-[-0.04em]">Your Wandr</h2>
+            <h2 className="text-4xl font-bold leading-[2.75rem] sm:text-5xl sm:leading-[3.75rem]">Your Wandr</h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
               Tune the basics and jump back into the trips you have started.
             </p>
           </section>
 
         {isLoadingAccount ? (
-          <div className="rounded-[1.35rem] bg-white/80 p-5 shadow-sm">
+          <div className="rounded-2xl bg-card p-6 ring-1 ring-border">
             <div className="h-5 w-36 animate-pulse rounded-full bg-muted" />
             <div className="mt-3 h-4 w-64 max-w-full animate-pulse rounded-full bg-muted" />
           </div>
         ) : !isAuthenticated ? (
-          <section className="rounded-[1.5rem] bg-foreground p-5 text-background shadow-xl shadow-foreground/15">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <section className="rounded-2xl bg-foreground p-6 text-background">
+            <div className="flex flex-col gap-4">
               <div>
-                <div className="flex items-center gap-2 text-sm font-semibold">
+                <div className="flex items-center gap-2 text-base font-medium">
                   <UserRound className="size-4" />
                   Wandr account
                 </div>
@@ -173,31 +173,31 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setAuthOpen(true)}
-                className="inline-flex min-h-10 items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-foreground transition-colors hover:bg-white/90"
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-medium text-foreground transition-colors hover:bg-white/90"
               >
                 Sign in
               </button>
             </div>
           </section>
         ) : currentUser ? (
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+          <div className="flex flex-col gap-8">
             <section>
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-3">
                 <div>
-                  <h2 className="text-xl font-semibold">Travel profile</h2>
+                  <h2 className="text-2xl font-bold leading-8">Travel profile</h2>
                   <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                     The same details you set during onboarding.
                   </p>
                 </div>
                 {saved ? (
-                  <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-highlight/10 px-3 py-1 text-xs font-medium text-highlight">
+                  <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background">
                     <CircleCheck className="size-3.5" />
                     Saved
                   </div>
                 ) : null}
               </div>
 
-              <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
+              <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4 rounded-2xl bg-card p-5 ring-1 ring-border">
                 <label className="flex flex-col gap-2 text-sm font-medium">
                   <span>Name</span>
                   <input
@@ -209,7 +209,7 @@ export default function SettingsPage() {
                     type="text"
                     required
                     autoComplete="name"
-                    className="min-h-12 rounded-2xl border border-transparent bg-white/90 px-4 text-[16px] font-normal shadow-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 sm:text-sm"
+                    className="min-h-12 rounded-lg border border-transparent bg-secondary px-4 text-[16px] font-normal outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 sm:text-sm"
                   />
                 </label>
 
@@ -224,13 +224,13 @@ export default function SettingsPage() {
                     type="text"
                     required
                     autoComplete="country-name"
-                    className="min-h-12 rounded-2xl border border-transparent bg-white/90 px-4 text-[16px] font-normal shadow-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 sm:text-sm"
+                    className="min-h-12 rounded-lg border border-transparent bg-secondary px-4 text-[16px] font-normal outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 sm:text-sm"
                   />
                 </label>
 
                 <div className="flex flex-col gap-2">
                   <div className="text-sm font-medium">Travel preferences</div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="flex flex-col gap-2">
                     {preferenceOptions.map((preference) => {
                       const active = selectedPreferences.includes(preference.id);
                       return (
@@ -239,10 +239,10 @@ export default function SettingsPage() {
                           type="button"
                           onClick={() => togglePreference(preference.id)}
                           className={[
-                            "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl px-3 py-2 text-sm font-medium shadow-sm transition-colors",
+                            "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
                             active
                               ? "bg-foreground text-background"
-                              : "bg-white/90 text-foreground hover:bg-white",
+                              : "bg-secondary text-foreground hover:bg-muted",
                           ].join(" ")}
                         >
                           {active ? <Check className="size-4" /> : null}
@@ -262,7 +262,7 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={pending}
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-70 sm:w-fit"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-base font-medium text-background transition-colors hover:bg-foreground/80 disabled:cursor-not-allowed disabled:opacity-70 sm:w-fit"
                 >
                   {pending ? <Loader2 className="size-4 animate-spin" /> : null}
                   Save settings
@@ -270,20 +270,20 @@ export default function SettingsPage() {
               </form>
             </section>
 
-            <section className="rounded-[1.5rem] bg-white/80 p-5 shadow-sm">
-              <h2 className="text-lg font-semibold">Account</h2>
+            <section className="rounded-2xl bg-card p-5 ring-1 ring-border">
+              <h2 className="text-xl font-bold leading-7">Account</h2>
               <div className="mt-4 divide-y divide-border/70 text-sm">
-                <div className="flex items-center justify-between gap-4 py-3 first:pt-0">
+                <div className="flex flex-col gap-1 py-3 first:pt-0">
                   <span className="text-muted-foreground">Email</span>
                   <span className="min-w-0 truncate font-medium">{currentUser.email ?? "No email saved"}</span>
                 </div>
-                <div className="flex items-center justify-between gap-4 py-3">
+                <div className="flex flex-col gap-1 py-3">
                   <span className="text-muted-foreground">Profile</span>
                   <span className="font-medium">
                     {currentUser.onboardingCompleted ? "Onboarding complete" : "Needs onboarding"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-4 py-3">
+                <div className="flex flex-col gap-1 py-3">
                   <span className="text-muted-foreground">Access</span>
                   <span className="font-medium">{currentUser.role === "admin" ? "Admin" : "Traveler"}</span>
                 </div>
@@ -291,7 +291,7 @@ export default function SettingsPage() {
               {currentUser.role === "admin" ? (
                 <Link
                   href="/admin"
-                  className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground px-4 text-sm font-semibold text-background transition-colors hover:bg-foreground/90"
+                  className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground px-4 text-sm font-medium text-background transition-colors hover:bg-foreground/80"
                 >
                   <ShieldCheck className="size-4" />
                   Admin
@@ -300,7 +300,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => void signOut()}
-                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-background px-4 text-sm font-semibold text-destructive transition-colors hover:bg-secondary"
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-secondary px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
               >
                 <LogOut className="size-4" />
                 Sign out
@@ -311,16 +311,16 @@ export default function SettingsPage() {
 
         {isAuthenticated ? (
           <section>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex flex-col gap-3">
               <div>
-                <h2 className="text-xl font-semibold">Trip plans</h2>
+                <h2 className="text-2xl font-bold leading-8">Trip plans</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Your latest saved routes.
                 </p>
               </div>
               <Link
                 href="/"
-                className="inline-flex min-h-10 w-fit items-center justify-center rounded-full bg-white/90 px-4 text-sm font-semibold shadow-sm transition-colors hover:bg-white"
+                className="inline-flex min-h-11 w-fit items-center justify-center rounded-full bg-secondary px-5 text-sm font-medium transition-colors hover:bg-muted"
               >
                 Open planner
               </Link>
@@ -330,7 +330,7 @@ export default function SettingsPage() {
               {isLoadingTrips ? (
                 <div className="space-y-3">
                   {[0, 1, 2].map((item) => (
-                    <div key={item} className="h-20 animate-pulse rounded-[1.35rem] bg-muted" />
+                    <div key={item} className="h-20 animate-pulse rounded-2xl bg-muted" />
                   ))}
                 </div>
               ) : tripPlans && tripPlans.length > 0 ? (
@@ -346,11 +346,11 @@ export default function SettingsPage() {
                       <Link
                         key={trip._id}
                         href={href}
-                        className="group flex flex-col gap-3 rounded-[1.35rem] bg-white/85 p-4 shadow-sm transition-transform active:scale-[0.99] sm:flex-row sm:items-center sm:justify-between"
+                        className="group flex flex-col gap-3 rounded-2xl bg-card p-4 ring-1 ring-border transition-colors hover:ring-foreground/20 active:bg-secondary"
                       >
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-base font-semibold">
+                            <span className="text-base font-bold">
                               {destination ? `${destination.city}, ${destination.country}` : trip.destinationId}
                             </span>
                             <span
@@ -382,20 +382,20 @@ export default function SettingsPage() {
                             </p>
                           ) : null}
                         </div>
-                        <ChevronRight className="hidden size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block" />
+                        <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                       </Link>
                     );
                   })}
                 </div>
               ) : (
-                <div className="rounded-[1.5rem] bg-white/80 p-6 text-center shadow-sm">
-                  <h3 className="text-base font-semibold">No saved trips yet</h3>
+                <div className="rounded-2xl bg-card p-6 text-center ring-1 ring-border">
+                  <h3 className="text-xl font-bold leading-7">No saved trips yet</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Build a route from the map and your plans will appear here.
                   </p>
                   <Link
                     href="/"
-                    className="mt-4 inline-flex min-h-10 items-center justify-center rounded-full bg-foreground px-4 text-sm font-semibold text-background transition-colors hover:bg-foreground/90"
+                    className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-foreground px-5 text-sm font-medium text-background transition-colors hover:bg-foreground/80"
                   >
                     Start planning
                   </Link>

@@ -52,7 +52,7 @@ export function SpotImage({
       <img
         src={imageSrc}
         alt={alt}
-        className={className}
+        className={`${className || ""} ${fill ? "absolute inset-0 h-full w-full" : ""}`.trim()}
         loading={eagerFromCache ? "eager" : "lazy"}
         decoding="async"
         onLoad={markLoaded}

@@ -30,39 +30,39 @@ const RoutePanel = ({ spot, mode, summary, isActive, isOnline, onModeChange, onC
   const distance = summary ? formatDistance(summary.distanceMeters) : "Calculating route";
 
   return (
-    <div className="overflow-hidden rounded-[1.5rem] bg-card">
-      <div className="flex items-center justify-between px-3 pb-2 pt-4">
+    <div className="overflow-hidden rounded-2xl bg-card">
+      <div className="flex items-center justify-between px-4 pb-2 pt-4">
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent">Route</div>
-          <h3 className="mt-1 truncate text-base font-semibold leading-tight">to {spot.name}</h3>
+          <div className="text-xs font-medium text-muted-foreground">Route</div>
+          <h3 className="mt-1 truncate text-xl font-bold leading-7">to {spot.name}</h3>
         </div>
         <button
           onClick={onClose}
-          className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           aria-label="Close route"
         >
           <X className="size-4" />
         </button>
       </div>
 
-      <div className="flex items-center gap-2 px-3 pb-5">
-        <div className="flex rounded-full bg-secondary p-1 text-xs font-medium">
+      <div className="flex items-center gap-2 px-4 pb-5">
+        <div className="flex rounded-full bg-secondary p-1 text-sm font-medium">
           <button
             onClick={() => onModeChange("walk")}
-            className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3.5 py-1.5 transition-colors ${mode === "walk" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 py-2 transition-colors ${mode === "walk" ? "bg-card text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Footprints className="size-3.5" /> Walk
           </button>
           <button
             onClick={() => onModeChange("drive")}
-            className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3.5 py-1.5 transition-colors ${mode === "drive" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 py-2 transition-colors ${mode === "drive" ? "bg-card text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Car className="size-3.5" /> Drive
           </button>
         </div>
 
         <div className="ml-auto text-right">
-          <div className="text-lg font-semibold tabular-nums leading-none">{eta ? `${eta} min` : "--"}</div>
+          <div className="text-xl font-bold tabular-nums leading-none">{eta ? `${eta} min` : "--"}</div>
           <div className="mt-0.5 text-[11px] text-muted-foreground">
             {!isOnline && <span className="mr-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">Offline</span>}
             {distance}
@@ -71,9 +71,9 @@ const RoutePanel = ({ spot, mode, summary, isActive, isOnline, onModeChange, onC
         </div>
       </div>
 
-      <div className="flex items-center gap-3 px-3 pb-3 pt-0">
+      <div className="flex items-center gap-3 px-4 pb-4 pt-0">
         <div className="flex min-w-0 flex-1 items-center gap-2 text-xs text-muted-foreground">
-          <span className="size-2 rounded-full bg-accent" />
+          <span className="size-2 rounded-full bg-foreground" />
           You
           <div className="hidden h-px flex-1 border-t border-dashed border-border min-[360px]:block" />
           <span className="size-2 rounded-full bg-foreground" />
@@ -81,7 +81,7 @@ const RoutePanel = ({ spot, mode, summary, isActive, isOnline, onModeChange, onC
         </div>
         <button
           onClick={onStart}
-          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background shadow-sm transition-colors hover:bg-foreground/90"
+          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/80"
         >
           <Navigation className="size-3.5" /> {isActive ? "Tracking" : "Start"}
         </button>

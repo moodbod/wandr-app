@@ -143,6 +143,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   const [routeOpen, setRouteOpen] = useState(() => Boolean(localSnapshot?.routeOpen));
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
   const [tripSheetOpen, setTripSheetOpen] = useState(false);
+  const [desktopTripPanelOpen, setDesktopTripPanelOpen] = useState(true);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -189,7 +190,8 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   const routeMode = effectiveTripData?.trip.routeMode ?? fallbackRouteMode;
   const activeCategory = categories.find((category) => category.id === activeCat) ?? categories[0];
   const tripProgress = getTripProgress(tripStops);
-  const showDesktopTripPanel = tripProgress.total > 0;
+  const hasDesktopTripPanel = tripProgress.total > 0;
+  const showDesktopTripPanel = hasDesktopTripPanel && desktopTripPanelOpen;
   const isActiveTrip = effectiveTripData?.trip.status === "active";
   const isPlanningTrip = effectiveTripData?.trip.status === "planning" && tripProgress.total > 0;
   const isInactiveRecommendation = !isActiveTrip && !isPlanningTrip;
@@ -612,7 +614,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
   return (
     <main className="wandr-native-map-shell text-foreground">
       {/* Map */}
-      <div className={["absolute inset-0", showDesktopTripPanel ? "lg:left-96" : ""].join(" ")}>
+      <div className="absolute inset-0">
         <MapboxStreetsMap
           mapConfig={activeMapConfig}
           spots={visibleSpots}
@@ -637,8 +639,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
       {/* Top */}
       <header
         className={[
-          "absolute left-0 right-0 top-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top))]",
-          showDesktopTripPanel ? "lg:left-96" : "",
+          "absolute left-0 right-0 top-0 z-30 px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-8 sm:pt-[max(1.5rem,env(safe-area-inset-top))]",
           !isRootRoute ? "hidden" : "",
         ].join(" ")}
       >
@@ -648,7 +649,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
               <button
                 type="button"
                 onClick={() => runGatedAction(() => undefined)}
-                className="grid size-10 shrink-0 place-items-center rounded-full border border-white/70 bg-white/95 text-foreground backdrop-blur-xl transition-transform active:scale-95"
+                className="grid size-11 shrink-0 place-items-center rounded-full bg-card text-foreground ring-1 ring-border transition-colors active:bg-secondary"
                 aria-label="Search"
               >
                 <Search className="size-4" />
@@ -659,7 +660,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                   <button
                     type="button"
                     onClick={() => setMobileFilterOpen((open) => !open)}
-                    className="inline-flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-full border border-white/70 bg-white/95 px-3.5 text-xs font-medium text-foreground backdrop-blur-xl transition-transform active:scale-95"
+                    className="inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-full bg-card px-4 text-sm font-medium text-foreground ring-1 ring-border transition-colors active:bg-secondary"
                     aria-expanded={mobileFilterOpen}
                     aria-label="Filter places"
                   >
@@ -669,7 +670,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                   </button>
 
                   {mobileFilterOpen ? (
-                    <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-2xl border border-white/70 bg-white/95 p-1 backdrop-blur-xl">
+                    <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-border bg-card p-1">
                       {categories.map((category) => {
                         const isActive = activeCat === category.id;
                         const Icon = category.icon;
@@ -682,7 +683,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                               setMobileFilterOpen(false);
                             }}
                             className={[
-                              "flex h-10 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium transition-colors",
+                              "flex h-11 w-full items-center gap-2 rounded-full px-3.5 text-left text-sm font-medium transition-colors",
                               isActive ? "bg-foreground text-background" : "text-foreground hover:bg-secondary",
                             ].join(" ")}
                           >
@@ -710,17 +711,14 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
 
         <div
           className={[
-            "hidden flex-col gap-2.5 sm:flex sm:gap-3",
-            showDesktopTripPanel
-              ? "lg:grid lg:grid-cols-[12rem_minmax(20rem,42rem)_max-content] lg:items-start lg:gap-x-6"
-              : "lg:grid lg:grid-cols-[12rem_minmax(20rem,42rem)_max-content] lg:items-start lg:gap-x-6 lg:justify-between",
+            "relative hidden sm:block",
           ].join(" ")}
         >
-          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 lg:contents">
-            <h1 className="rounded-full bg-card/95 px-3.5 py-2.5 text-base font-semibold tracking-tight shadow-sm backdrop-blur-md lg:col-start-1 lg:bg-transparent lg:px-0 lg:pt-3 lg:text-xl lg:shadow-none lg:backdrop-blur-0">
+          <div className="pointer-events-none absolute left-0 right-0 top-0 flex items-start justify-between gap-4">
+            <h1 className="pointer-events-auto rounded-full bg-card px-4 py-2.5 text-base font-bold leading-5 ring-1 ring-border lg:text-xl">
               Wandr
             </h1>
-            <div className="contents lg:col-start-3 lg:flex lg:items-center lg:gap-2">
+            <div className="pointer-events-auto flex items-center gap-2">
               <AuthStatus
                 userName={currentUser?.name}
                 userEmail={currentUser?.email}
@@ -731,12 +729,11 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
 
           <div
             className={[
-              "mx-auto flex w-full max-w-2xl flex-col gap-2.5 lg:row-start-1 lg:gap-3 lg:pt-0",
-              showDesktopTripPanel ? "lg:col-start-2 lg:mx-0 lg:max-w-none" : "lg:col-start-2 lg:mx-auto",
+              "mx-auto flex w-full max-w-2xl flex-col gap-3",
             ].join(" ")}
           >
             <form
-              className="flex items-center gap-2 rounded-full border border-border bg-card/95 py-1.5 pl-4 pr-1.5 shadow-lg shadow-foreground/10 backdrop-blur-md lg:bg-card lg:shadow-sm lg:backdrop-blur-0"
+              className="flex items-center gap-3 rounded-2xl bg-card p-2 pl-4 ring-1 ring-border"
               onSubmit={(event) => {
                 event.preventDefault();
                 runGatedAction(() => undefined);
@@ -746,17 +743,17 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
               <input
                 type="text"
                 placeholder="Where should we go today?"
-                className="min-w-0 w-full bg-transparent py-1.5 text-[16px] placeholder:text-muted-foreground focus:outline-none sm:text-sm"
+                className="min-w-0 w-full bg-transparent py-2 text-[16px] placeholder:text-muted-foreground focus:outline-none sm:text-base"
               />
               <button
                 type="submit"
-                className="rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background transition-colors hover:bg-foreground/90"
+                className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/80"
               >
                 Ask
               </button>
             </form>
 
-            <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
+            <div className="-mx-3 flex justify-center gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
               {categories.map((c) => {
                 const isActive = activeCat === c.id;
                 const Icon = c.icon;
@@ -765,8 +762,8 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                     key={c.id}
                     onClick={() => setActiveCat(c.id)}
                     className={[
-                      "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium shadow-sm transition-colors",
-                      isActive ? "bg-foreground text-background" : "border border-border bg-card/95 text-foreground backdrop-blur-md hover:bg-secondary",
+                      "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
+                      isActive ? "bg-foreground text-background" : "bg-secondary text-foreground hover:bg-muted",
                     ].join(" ")}
                   >
                     <Icon className="size-3.5" />
@@ -782,14 +779,13 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
       {/* Bottom */}
       <div
         className={[
-          "wandr-bottom-sheet absolute bottom-0 left-0 right-0 z-30 sm:px-6 sm:pb-6",
-          showDesktopTripPanel ? "lg:left-96" : "",
+          "wandr-bottom-sheet absolute bottom-[5.25rem] left-0 right-0 z-30 px-3 sm:bottom-0 sm:px-8 sm:pb-8",
           !isRootRoute ? "hidden" : "",
         ].join(" ")}
       >
-        <div className="mx-auto flex w-full flex-col sm:max-w-2xl sm:gap-2.5">
+        <div className="mx-auto flex w-full flex-col sm:max-w-2xl sm:gap-3">
           {nextStop && routeOpen ? (
-            <div className="wandr-bottom-surface overflow-hidden rounded-t-[2rem] bg-card px-2 pb-[calc(4rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_30px_rgb(0,0,0,0.08)] sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
+            <div className="wandr-bottom-surface overflow-hidden rounded-2xl bg-card p-2 ring-1 ring-border sm:bg-transparent sm:p-0 sm:ring-0">
               <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
               <RoutePanel
                 spot={nextStop}
@@ -803,22 +799,22 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
               />
             </div>
           ) : nextStop ? (
-            <div className="wandr-bottom-surface overflow-hidden rounded-t-[2rem] bg-card px-2 pb-[calc(4rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_30px_rgb(0,0,0,0.08)] sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none">
+            <div className="wandr-bottom-surface overflow-hidden rounded-2xl bg-card p-2 ring-1 ring-border sm:bg-transparent sm:p-0 sm:ring-0">
               <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
               <div className="mb-4 flex items-center justify-between gap-3 sm:hidden">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-accent">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                     <ListChecks className="size-3.5" />
                     {isActiveTrip ? "Active trip" : isPlanningTrip ? "Trip ready" : "Start a trip"}
                   </div>
-                  <div className="mt-0.5 truncate text-lg font-black leading-none tracking-[-0.04em] text-foreground">
+                  <div className="mt-0.5 truncate text-xl font-bold leading-7 text-foreground">
                     {tripProgress.total > 0 ? `${tripProgress.total} stop${tripProgress.total === 1 ? "" : "s"}` : "Suggested stop"}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => runGatedAction(() => setTripSheetOpen(true))}
-                  className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full bg-foreground px-3.5 py-2 text-xs font-semibold text-background transition-transform active:scale-95"
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/80"
                   aria-label={`Open trip with ${tripProgress.total} stops`}
                 >
                   Trip
@@ -826,56 +822,55 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
               </div>
 
               <div
-                className="wandr-recommendation-card group overflow-hidden rounded-[2rem] bg-foreground text-left text-background transition-transform active:scale-[0.99] sm:rounded-[1.35rem] sm:border sm:border-border sm:bg-card sm:text-foreground sm:hover:border-foreground/20"
+                className="wandr-recommendation-card group mx-auto w-full overflow-hidden rounded-2xl bg-foreground text-left text-background ring-1 ring-border transition-transform active:scale-[0.99] sm:max-w-xl sm:bg-card sm:text-foreground"
               >
-                <div className="relative min-h-[11rem] sm:grid sm:min-h-[10.5rem] sm:grid-cols-[8rem_1fr]">
-                  <div className="absolute inset-0 sm:relative sm:inset-auto sm:min-h-[10.5rem]">
+                <div className="relative min-h-[11rem] sm:flex sm:items-stretch sm:min-h-[8.5rem]">
+                  <div className="absolute inset-0 sm:relative sm:w-[8.5rem] sm:shrink-0 sm:min-h-[8.5rem]">
                     <SpotImage
                       src={nextStop.image}
                       alt={nextStop.name}
                       className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      sizes="(min-width: 640px) 8rem, 100vw"
+                      sizes="(min-width: 640px) 8.5rem, 100vw"
                       fill
                       priority
                     />
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent sm:hidden" />
-                  <div className="relative flex min-h-[11rem] min-w-0 flex-col justify-end p-4 sm:min-h-0 sm:justify-start sm:gap-2 sm:p-4">
+                  <div className="relative flex min-h-[11rem] min-w-0 flex-col justify-end p-4 sm:flex-1 sm:min-h-0 sm:justify-start sm:gap-1 sm:p-3">
                     
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80 sm:text-[11px] sm:font-medium sm:tracking-wider sm:text-accent">
+                        <div className="text-xs font-medium text-white/80 sm:text-muted-foreground">
                           {isInactiveRecommendation ? "Featured" : stopCardLabel}
                         </div>
-                        <h2 className="mt-1 line-clamp-2 text-xl font-bold leading-tight text-white sm:text-lg sm:text-foreground">{nextStop.name}</h2>
+                        <h2 className="mt-1 line-clamp-2 text-2xl font-bold leading-8 text-white sm:text-base sm:font-semibold sm:leading-tight sm:text-foreground">{nextStop.name}</h2>
                       </div>
                       
-                      {/* Walk/Drive Time Pill */}
-                      <div className="flex shrink-0 items-center gap-1 rounded-full bg-black/30 backdrop-blur-md px-3 py-1.5 text-white sm:flex-col sm:items-end sm:gap-0 sm:bg-transparent sm:px-0 sm:py-0 sm:text-foreground sm:shadow-none">
-                        <span className="text-sm font-bold leading-none tabular-nums sm:text-sm sm:font-semibold">
+                      <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-white sm:flex-col sm:items-end sm:gap-0 sm:bg-secondary sm:px-2.5 sm:py-1 sm:text-foreground">
+                        <span className="text-sm font-medium leading-none tabular-nums sm:text-xs">
                           {routeMode === "drive" ? nextStop.driveMin : nextStop.walkMin} min
                         </span>
-                        <span className="text-[11px] leading-none text-white/80 sm:mt-0.5 sm:text-[11px] sm:text-muted-foreground">{routeMode}</span>
+                        <span className="text-[11px] leading-none text-white/80 sm:mt-0.5 sm:text-[10px] sm:text-muted-foreground">{routeMode}</span>
                       </div>
                     </div>
 
-                    <p className="mt-1 line-clamp-1 text-sm font-medium text-white/90 sm:line-clamp-3 sm:text-sm sm:text-muted-foreground">{nextStop.tip}</p>
+                    <p className="mt-1 line-clamp-2 text-sm font-normal leading-5 text-white/90 sm:line-clamp-2 sm:text-xs sm:leading-normal sm:text-muted-foreground">{nextStop.tip}</p>
 
                     {isInactiveRecommendation ? (
-                      <div className="mt-4 flex flex-wrap gap-2 sm:mt-auto">
+                      <div className="mt-3 flex flex-wrap gap-2 sm:mt-auto sm:gap-1.5">
                         <button
                           type="button"
                           onClick={() => setOpenSpotId(nextStop.id)}
-                          className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-md px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/30 sm:bg-foreground sm:px-3.5 sm:text-background sm:hover:bg-foreground/90 sm:backdrop-blur-none"
+                          className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-white/90 sm:min-h-8 sm:h-8 sm:px-3 sm:py-1 sm:text-xs sm:bg-foreground sm:text-background sm:hover:bg-foreground/80"
                         >
-                          <Eye className="size-4" /> View spot
+                          <Eye className="size-4 sm:size-3.5" /> View spot
                         </button>
                         <button
                           type="button"
                           onClick={() => runGatedAction(() => setRouteOpen(true))}
-                          className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-black/40 sm:border sm:border-border sm:bg-transparent sm:px-3.5 sm:text-foreground sm:hover:bg-secondary sm:backdrop-blur-none"
+                          className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white/15 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/25 sm:min-h-8 sm:h-8 sm:px-3 sm:py-1 sm:text-xs sm:bg-secondary sm:text-foreground sm:hover:bg-muted"
                         >
-                          <Navigation className="size-4" /> Route
+                          <Navigation className="size-4 sm:size-3.5" /> Route
                         </button>
                       </div>
                     ) : (
@@ -889,9 +884,9 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
 
                           runGatedAction(() => setRouteOpen(true));
                         }}
-                        className="mt-4 inline-flex min-h-9 self-start items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-md px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/30 sm:mt-auto sm:bg-foreground sm:px-3.5 sm:text-background sm:hover:bg-foreground/90 sm:backdrop-blur-none"
+                        className="mt-4 inline-flex min-h-11 self-start items-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-white/90 sm:mt-auto sm:min-h-8 sm:h-8 sm:px-3 sm:py-1 sm:text-xs sm:bg-foreground sm:text-background sm:hover:bg-foreground/80"
                       >
-                        <Navigation className="size-4" /> {stopActionLabel}
+                        <Navigation className="size-4 sm:size-3.5" /> {stopActionLabel}
                       </button>
                     )}
                   </div>
@@ -899,7 +894,7 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
               </div>
             </div>
           ) : (
-            <div className="wandr-bottom-surface rounded-t-[2rem] border border-border bg-card p-4 pb-[calc(4rem+env(safe-area-inset-bottom))] text-center text-sm text-muted-foreground shadow-[0_-8px_30px_rgb(0,0,0,0.08)] sm:rounded-2xl sm:shadow-sm">
+            <div className="wandr-bottom-surface rounded-2xl bg-card p-5 text-center text-sm text-muted-foreground ring-1 ring-border">
               No spots in this category yet.
             </div>
           )}
@@ -907,13 +902,14 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
       </div>
 
       {showDesktopTripPanel && isRootRoute ? (
-        <div className="absolute bottom-0 left-0 top-0 z-30 hidden w-96 animate-in slide-in-from-left-6 duration-300 border-r border-border shadow-xl lg:block">
+        <div className="absolute bottom-6 left-6 top-6 z-40 hidden w-[min(24rem,calc(100vw-3rem))] overflow-hidden rounded-[2rem] bg-card shadow-2xl ring-1 ring-border animate-in slide-in-from-left-6 duration-300 lg:block">
           <TripPanel
             title="Your trip"
             spots={allSpots}
             tripData={tripPanelData}
             selectedSpot={openSpot}
             routedSpotId={routedSpotId}
+            onClose={() => setDesktopTripPanelOpen(false)}
             onAddSpot={handleAddSpotToTrip}
             onRemoveStop={(tripStopId) => runGatedAction(() => void removeTripStop({ tripStopId: tripStopId as Id<"tripStops"> }))}
             onMoveStop={(tripStopId, direction) => runGatedAction(() => {
@@ -961,8 +957,23 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
         </div>
       ) : null}
 
+      {hasDesktopTripPanel && !desktopTripPanelOpen && isRootRoute ? (
+        <button
+          type="button"
+          onClick={() => setDesktopTripPanelOpen(true)}
+          className="absolute left-6 top-24 z-40 hidden min-h-11 items-center gap-2 rounded-full bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-lg ring-1 ring-border transition-colors hover:bg-secondary lg:inline-flex"
+          aria-label={`Open trip panel with ${tripProgress.total} stops`}
+        >
+          <ListChecks className="size-4" />
+          Trip
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+            {tripProgress.total}
+          </span>
+        </button>
+      ) : null}
+
       <Drawer open={tripSheetOpen} onOpenChange={setTripSheetOpen}>
-        <DrawerContent className="h-[88dvh] max-h-[88dvh] rounded-t-[1.75rem] border-border bg-card p-0 lg:hidden">
+        <DrawerContent className="h-[88dvh] max-h-[88dvh] rounded-t-2xl border-border bg-card p-0 lg:hidden">
           <DrawerTitle className="sr-only">Your adventure</DrawerTitle>
           <TripPanel
             title="Your trip"
