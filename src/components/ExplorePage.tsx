@@ -1054,14 +1054,14 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
       {/* Bottom */}
       <div
         className={[
-          "wandr-bottom-sheet absolute bottom-[5.25rem] left-0 right-0 z-30 px-3 sm:bottom-0 sm:px-8 sm:pb-8",
+          "wandr-bottom-sheet absolute bottom-[calc(3rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-30 sm:bottom-0 sm:px-8 sm:pb-8",
           !isRootRoute ? "hidden" : "",
         ].join(" ")}
       >
         <div className="mx-auto flex w-full flex-col sm:max-w-2xl sm:gap-3">
           {nextStop && routeOpen ? (
-            <div className="wandr-bottom-surface overflow-hidden rounded-2xl bg-card p-2 ring-1 ring-border sm:bg-transparent sm:p-0 sm:ring-0">
-              <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
+            <div className="wandr-bottom-surface overflow-hidden rounded-t-3xl bg-card p-4 pb-2 border-t border-border shadow-[0_-8px_30px_rgb(0,0,0,0.08)] sm:rounded-2xl sm:bg-transparent sm:p-0 sm:border-0 sm:shadow-none sm:ring-0">
+              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted sm:hidden" />
               <RoutePanel
                 spot={nextStop}
                 mode={routeMode}
@@ -1074,9 +1074,9 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
               />
             </div>
           ) : nextStop ? (
-            <div className="wandr-bottom-surface overflow-hidden rounded-2xl bg-card p-2 ring-1 ring-border sm:bg-transparent sm:p-0 sm:ring-0">
-              <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-muted sm:hidden" />
-              <div className="mb-4 flex items-center justify-between gap-3 sm:hidden">
+            <div className="wandr-bottom-surface overflow-hidden rounded-t-3xl bg-card pt-3 border-t border-border shadow-[0_-8px_30px_rgb(0,0,0,0.08)] sm:rounded-2xl sm:bg-transparent sm:p-0 sm:border-0 sm:shadow-none sm:ring-0">
+              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted sm:hidden" />
+              <div className="mb-4 px-5 flex items-center justify-between gap-3 sm:px-0 sm:hidden">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                     <ListChecks className="size-3.5" />
@@ -1106,10 +1106,10 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                     setOpenSpotId(nextStop.id);
                   }
                 }}
-                className="wandr-recommendation-card group mx-auto w-full overflow-hidden rounded-2xl bg-foreground text-left text-background ring-1 ring-border transition-transform active:scale-[0.99] sm:max-w-xl sm:bg-card sm:text-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="wandr-recommendation-card group mx-auto w-full bg-card text-left text-foreground transition-transform active:scale-[0.99] sm:overflow-hidden sm:rounded-2xl sm:ring-1 sm:ring-border sm:max-w-xl cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <div className="relative min-h-[11rem] sm:flex sm:items-stretch sm:min-h-[8.5rem]">
-                  <div className="absolute inset-0 sm:relative sm:w-[8.5rem] sm:shrink-0 sm:min-h-[8.5rem]">
+                <div className="relative flex items-stretch min-h-[8.5rem] px-4 pb-4 sm:p-0">
+                  <div className="relative w-[7.5rem] shrink-0 min-h-[7.5rem] overflow-hidden rounded-xl sm:w-[8.5rem] sm:min-h-[8.5rem] sm:rounded-none">
                     <SpotImage
                       src={nextStop.image}
                       alt={nextStop.name}
@@ -1119,39 +1119,38 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
                       priority
                     />
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent sm:hidden" />
-                  <div className="relative flex min-h-[11rem] min-w-0 flex-col justify-end p-4 sm:flex-1 sm:min-h-0 sm:justify-start sm:gap-1 sm:p-3">
+                  <div className="relative flex flex-1 min-w-0 flex-col justify-start gap-1 p-3">
 
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-xs font-medium text-white/80 sm:text-muted-foreground">
+                        <div className="text-xs font-medium text-muted-foreground">
                           {isInactiveRecommendation ? <span className="sr-only">You might like this</span> : null}
                           {isInactiveRecommendation ? "Featured" : stopCardLabel}
                         </div>
-                        <h2 className="mt-1 line-clamp-2 text-2xl font-bold leading-8 text-white sm:text-base sm:font-semibold sm:leading-tight sm:text-foreground">{nextStop.name}</h2>
+                        <h2 className="mt-1 line-clamp-2 text-base font-semibold leading-tight text-foreground">{nextStop.name}</h2>
                       </div>
 
-                      <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-white sm:flex-col sm:items-end sm:gap-0 sm:bg-secondary sm:px-2.5 sm:py-1 sm:text-foreground">
-                        <span className="text-sm font-medium leading-none tabular-nums sm:text-xs">
+                      <div className="flex shrink-0 flex-col items-end rounded-full bg-secondary px-2.5 py-1 text-foreground">
+                        <span className="text-xs font-medium leading-none tabular-nums">
                           {routeMode === "drive" ? nextStop.driveMin : nextStop.walkMin} min
                         </span>
-                        <span className="text-[11px] leading-none text-white/80 sm:mt-0.5 sm:text-[10px] sm:text-muted-foreground">{routeMode}</span>
+                        <span className="mt-0.5 text-[10px] leading-none text-muted-foreground">{routeMode}</span>
                       </div>
                     </div>
 
-                    <p className="mt-1 line-clamp-2 text-sm font-normal leading-5 text-white/90 sm:line-clamp-2 sm:text-xs sm:leading-normal sm:text-muted-foreground">{nextStop.tip}</p>
+                    <p className="mt-1 line-clamp-2 text-xs leading-normal text-muted-foreground">{nextStop.tip}</p>
 
                     {isInactiveRecommendation ? (
-                      <div className="mt-3 flex flex-wrap gap-2 sm:mt-auto sm:gap-1.5">
+                      <div className="mt-auto flex flex-wrap gap-1.5">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             runGatedAction(() => setRouteOpen(true));
                           }}
-                          className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-white/90 sm:min-h-8 sm:h-8 sm:px-3 sm:py-1 sm:text-xs sm:bg-foreground sm:text-background sm:hover:bg-foreground/80"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 py-1 text-xs font-medium text-background transition-colors hover:bg-foreground/80"
                         >
-                          <Navigation className="size-4 sm:size-3.5" /> Route
+                          <Navigation className="size-3.5" /> Route
                         </button>
                       </div>
                     ) : (
@@ -1166,9 +1165,9 @@ const ExplorePage = ({ initialDestinationId: _initialDestinationId, children }: 
 
                           runGatedAction(() => setRouteOpen(true));
                         }}
-                        className="mt-4 inline-flex min-h-11 self-start items-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-white/90 sm:mt-auto sm:min-h-8 sm:h-8 sm:px-3 sm:py-1 sm:text-xs sm:bg-foreground sm:text-background sm:hover:bg-foreground/80"
+                        className="mt-auto inline-flex self-start h-8 items-center gap-1.5 rounded-full bg-foreground px-3 py-1 text-xs font-medium text-background transition-colors hover:bg-foreground/80"
                       >
-                        <Navigation className="size-4 sm:size-3.5" /> {stopActionLabel}
+                        <Navigation className="size-3.5" /> {stopActionLabel}
                       </button>
                     )}
                   </div>
