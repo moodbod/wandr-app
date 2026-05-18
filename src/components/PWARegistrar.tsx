@@ -10,10 +10,14 @@ export function PWARegistrar() {
       window.matchMedia("(display-mode: standalone)").matches ||
       ("standalone" in navigator && (navigator as StandaloneNavigator).standalone === true);
 
+    const isWindows = /Windows|Win32|Win64/i.test(navigator.userAgent);
+
     document.documentElement.classList.toggle("is-standalone-pwa", isStandalone);
+    document.documentElement.classList.toggle("is-windows", isWindows);
 
     return () => {
       document.documentElement.classList.remove("is-standalone-pwa");
+      document.documentElement.classList.remove("is-windows");
     };
   }, []);
 

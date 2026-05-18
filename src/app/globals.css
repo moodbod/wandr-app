@@ -311,10 +311,13 @@
     font-weight: 600;
   }
 
-  /* Hide Mapbox zoom, logo, and attribution controls on mobile PWA and small screens */
+  /* Hide Mapbox zoom, logo, and attribution controls on mobile PWA, small screens, and Windows */
   .is-standalone-pwa .mapboxgl-ctrl-group,
   .is-standalone-pwa .mapboxgl-ctrl-logo,
-  .is-standalone-pwa .mapboxgl-ctrl-attrib {
+  .is-standalone-pwa .mapboxgl-ctrl-attrib,
+  .is-windows .mapboxgl-ctrl-group,
+  .is-windows .mapboxgl-ctrl-logo,
+  .is-windows .mapboxgl-ctrl-attrib {
     display: none !important;
   }
 
