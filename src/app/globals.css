@@ -310,4 +310,15 @@
   .wandr-bottom-nav__tab--active .wandr-bottom-nav__label {
     font-weight: 600;
   }
+
+  /* Hide Mapbox zoom/navigation controls on mobile PWA and small screens */
+  .is-standalone-pwa .mapboxgl-ctrl-group {
+    display: none !important;
+  }
+
+  @media (max-width: 640px) {
+    .mapboxgl-ctrl-group {
+      display: none !important;
+    }
+  }
 }
