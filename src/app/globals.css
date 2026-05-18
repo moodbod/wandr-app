@@ -311,13 +311,17 @@
     font-weight: 600;
   }
 
-  /* Hide Mapbox zoom/navigation controls on mobile PWA and small screens */
-  .is-standalone-pwa .mapboxgl-ctrl-group {
+  /* Hide Mapbox zoom, logo, and attribution controls on mobile PWA and small screens */
+  .is-standalone-pwa .mapboxgl-ctrl-group,
+  .is-standalone-pwa .mapboxgl-ctrl-logo,
+  .is-standalone-pwa .mapboxgl-ctrl-attrib {
     display: none !important;
   }
 
   @media (max-width: 640px) {
-    .mapboxgl-ctrl-group {
+    .mapboxgl-ctrl-group,
+    .mapboxgl-ctrl-logo,
+    .mapboxgl-ctrl-attrib {
       display: none !important;
     }
   }
